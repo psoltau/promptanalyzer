@@ -1,0 +1,35 @@
+[importlinter]
+root_package = app
+include_external_packages = True
+
+[importlinter:contract:layers]
+name = Onion layers
+type = layers
+layers =
+    app.main
+    app.adapters
+    app.application
+    app.domain
+
+[importlinter:contract:core-is-clean]
+name = Core has no framework imports
+type = forbidden
+source_modules =
+    app.domain
+    app.application
+forbidden_modules =
+    fastapi
+    starlette
+    pydantic
+    sqlite3
+    httpx
+    requests
+    openai
+
+[importlinter:contract:adapters-isolated]
+name = Adapters do not know each other
+type = independence
+modules =
+    app.adapters.http
+    app.adapters.sqlite
+    app.adapters.responses
