@@ -14,9 +14,10 @@ vorher gewarnt, dass sein aktueller Arbeitsstand dabei überschrieben wird.
 
 **Status:** ready-for-agent
 
-- [ ] Profil umbenennen und löschen über HTTP und in der Oberfläche
+- [ ] Profil umbenennen und löschen
 - [ ] Profil-Liste zeigt je Profil Anzahl der Läufe und Zeitpunkt der letzten Benutzung
 - [ ] Duplizieren erzeugt ein neues Profil mit vollständig übernommener Historie; das Original bleibt unverändert
 - [ ] „Aus Lauf N übernehmen" kopiert den Schnappschuss des Laufs in den Arbeitsstand
 - [ ] Vor dem Übernehmen wird gewarnt, dass der aktuelle Arbeitsstand überschrieben wird
 - [ ] Der Lauf selbst bleibt dabei unverändert
+- [ ] Erfüllt `standards/`; die Verifikationsschritte aus `standards/architecture_backend.md` §9 laufen grün

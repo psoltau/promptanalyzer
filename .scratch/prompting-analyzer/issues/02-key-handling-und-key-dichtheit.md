@@ -22,3 +22,4 @@ werden, ohne ein Geheimnis zu verteilen.
 - [ ] Gespeichertes `request_json` enthält keine Header
 - [ ] Bereinigung entfernt Key-artige Zeichenketten aus jedem zu speichernden Text vor dem Schreiben
 - [ ] Key-Dichtheitstest: nach Läufen mit Key im Header und key-artigem Text im Prompt enthält keine Spalte irgendeiner Zeile die Key-Zeichenkette. Dieser Test darf nie gelöscht werden, ohne ihn zu ersetzen
+- [ ] Erfüllt `standards/`; die Verifikationsschritte aus `standards/architecture_backend.md` §9 laufen grün

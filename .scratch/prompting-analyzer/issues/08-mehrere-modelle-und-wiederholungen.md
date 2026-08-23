@@ -26,3 +26,4 @@ Calls als eine Zahl mit einem anderen Lauf verglichen werden kann.
 - [ ] Wiederholungen eines Modells erreichen den Responses-Client streng nacheinander; verschiedene Modelle dürfen sich überlappen
 - [ ] Fehlerisolation: ein geworfener Fehler für ein Modell erzeugt eine `error`-Zeile mit Fehlertext, die Calls der anderen Modelle sind vollständig vorhanden
 - [ ] Aggregatzeile je Lauf in der Vergleichstabelle
+- [ ] Erfüllt `standards/`; die Verifikationsschritte aus `standards/architecture_backend.md` §9 laufen grün

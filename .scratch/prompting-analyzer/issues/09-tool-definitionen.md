@@ -18,3 +18,4 @@ im Response-JSON nachlesbar.
 - [ ] Syntaktisch kaputtes JSON wird im Frontend sofort gemeldet
 - [ ] Tool-Definitionen gehen als `tools` an die API und werden nie ausgeführt
 - [ ] Ein zurückgegebener Funktionsaufruf beendet den Call als Ergebnis; es entsteht kein zweiter Request
+- [ ] Erfüllt `standards/`; die Verifikationsschritte aus `standards/architecture_backend.md` §9 laufen grün

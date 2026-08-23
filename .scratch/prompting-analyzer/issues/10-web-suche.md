@@ -23,3 +23,4 @@ nicht.
 - [ ] Spalte „Suchanfragen" wird korrekt aus der Antwortstruktur gezählt
 - [ ] Suchkosten sind in der Kostenzahl enthalten; fehlender Suchpreis lässt die Kostenspalte leer
 - [ ] Es entsteht weiterhin genau ein Request pro Call
+- [ ] Erfüllt `standards/`; die Verifikationsschritte aus `standards/architecture_backend.md` §9 laufen grün

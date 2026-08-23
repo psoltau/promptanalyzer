@@ -10,7 +10,7 @@ Output-Summe.
 Die Statusspalte ist laut: `complete`, `incomplete (max_output_tokens)` und `error` sind auf einen
 Blick unterscheidbar, damit niemand Läufe vergleicht, die gar kein vergleichbares Ergebnis haben.
 
-Derselbe Endpunkt ist der Fortschrittsanzeiger. Solange ein Lauf kein `beendet_am` hat, pollt das
+Dieselbe Tabelle ist der Fortschrittsanzeiger. Solange ein Lauf nicht beendet ist, aktualisiert das
 Frontend im Sekundenrhythmus; Zeilen erscheinen, sobald der jeweilige Call fertig ist, und der
 Prompt-Optimierer sieht, dass ein Lauf noch läuft und wie viele seiner Calls fertig sind. Er
 ändert den Arbeitsstand, führt erneut aus, und die neue Zeile steht neben allen alten.
@@ -19,11 +19,12 @@ Prompt-Optimierer sieht, dass ein Lauf noch läuft und wie viele seiner Calls fe
 
 **Status:** ready-for-agent
 
-- [ ] Ein Endpunkt liefert alle Calls eines Profils chronologisch, über Läufe hinweg
+- [ ] Alle Calls eines Profils erscheinen in einer Tabelle, über Läufe hinweg, chronologisch
 - [ ] Tabelle ist nach jeder Spalte sortierbar
 - [ ] Input, gecachter Input, Reasoning und Output stehen in getrennten Spalten
 - [ ] Statusspalte zeigt `complete`, `incomplete (max_output_tokens)` und `error` deutlich unterscheidbar
 - [ ] Dauer je Call ist sichtbar
-- [ ] Frontend pollt im Sekundenrhythmus, solange ein Lauf kein `beendet_am` hat, und stellt es danach ein
+- [ ] Die Tabelle aktualisiert sich im Sekundenrhythmus, solange ein Lauf nicht beendet ist, und hört danach auf
 - [ ] Fortschritt eines laufenden Laufs ist sichtbar (fertige von erwarteten Calls)
 - [ ] Zeilen früherer Läufe bleiben unverändert stehen, wenn ein neuer Lauf hinzukommt
+- [ ] Erfüllt `standards/`; die Verifikationsschritte aus `standards/architecture_backend.md` §9 laufen grün

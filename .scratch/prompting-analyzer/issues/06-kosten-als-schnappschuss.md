@@ -28,3 +28,4 @@ Register überschreibt — auf Ansage, nie automatisch.
 - [ ] Die vier verwendeten Preissätze sind je Call gespeichert und im Detail sichtbar
 - [ ] Preisänderung im Register lässt Kosten und Preisfelder alter Calls unverändert
 - [ ] „Kosten neu berechnen" am Lauf überschreibt dessen Preis-Schnappschüsse und Kosten aus dem aktuellen Register
+- [ ] Erfüllt `standards/`; die Verifikationsschritte aus `standards/architecture_backend.md` §9 laufen grün

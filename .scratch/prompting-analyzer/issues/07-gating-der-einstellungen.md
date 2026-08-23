@@ -15,3 +15,4 @@ auch, bevor Zahlen eingetragen sind.
 - [ ] Modelle ohne gepflegte Preise sind in der Auswahl als solche erkennbar
 - [ ] Ein Modell ohne gepflegte Preise ist trotzdem ausführbar
 - [ ] Das Gating folgt ausschließlich den Fähigkeitsschaltern des Registers, nicht einer fest verdrahteten Liste
+- [ ] Erfüllt `standards/`; die Verifikationsschritte aus `standards/architecture_backend.md` §9 laufen grün

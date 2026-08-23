@@ -21,3 +21,4 @@ Testprompts nicht dem Modell oder dem Werkzeug angelastet wird.
 - [ ] Rohes Request- und Response-JSON sind sichtbar
 - [ ] Bei Status `error` ist der Fehlertext lesbar
 - [ ] Hinweis zu gecachten Input-Tokens (~1000 Tokens gemeinsamer Prefix) ist an der richtigen Stelle sichtbar
+- [ ] Erfüllt `standards/`; die Verifikationsschritte aus `standards/architecture_backend.md` §9 laufen grün
