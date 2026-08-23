@@ -71,10 +71,7 @@ def save_arbeitsstand_route(
 def start_lauf_route(
     profil_id: str, response: Response, deps: LaufStartDeps = Depends(get_lauf_start_deps)
 ) -> LaufStartResponse:
-    profil = get_profile(profil_id, deps.profil_repo)
-    lauf = start_lauf(profil, deps.api_key, deps.lauf_repo)
-    assert deps.api_key is not None
-    deps.runner.start(lauf, deps.api_key)
+    lauf = start_lauf(profil_id, deps.api_key, deps.ports)
     response.headers["Location"] = f"/api/v1/lauf/{lauf.id}"
     return lauf_to_start_response(lauf)
 

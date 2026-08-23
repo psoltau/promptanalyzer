@@ -146,6 +146,23 @@ def test_lauf_friert_prompt_und_einstellungen_ein(client, gateway):
     assert geladenes_profil["arbeitsstand"]["system_prompt"] == "Version B"
 
 
+def test_einstellungen_in_der_laufuebersicht_ohne_prompt_texte(client):
+    profil = _erstelle_profil(client)
+    _setze_arbeitsstand(client, profil["id"], system_prompt="Geheimer Systemtext")
+
+    _starte_lauf(client, profil["id"], headers={"X-OpenAI-Key": "sk-test"})
+
+    laufeintrag = client.get(f"/api/v1/profile/{profil['id']}/calls").json()["laeufe"][0]
+    assert set(laufeintrag["einstellungen"].keys()) == {
+        "modelle",
+        "max_output_tokens",
+        "reasoning_effort",
+        "web_suche",
+        "search_context_size",
+        "wiederholungen",
+    }
+
+
 def test_tokenposten_getrennt_gespeichert_und_antwort_lesbar(client, gateway):
     profil = _erstelle_profil(client)
     _setze_arbeitsstand(client, profil["id"])

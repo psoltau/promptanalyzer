@@ -8,6 +8,7 @@ from app.adapters.http.schemas import (
     CallRow,
     CallsResponse,
     LaufAggregatBody,
+    LaufEinstellungen,
     LaufStartResponse,
     LaufSummary,
     PreiseBody,
@@ -102,8 +103,19 @@ def _lauf_eintrag_to_summary(eintrag: LaufUebersichtEintrag) -> LaufSummary:
         beendet_am=_to_iso_z_optional(lauf.beendet_am),
         erwartete_calls=eintrag.erwartete_calls,
         fertige_calls=eintrag.fertige_calls,
-        einstellungen=arbeitsstand_to_body(lauf.arbeitsstand),
+        einstellungen=_einstellungen(lauf.arbeitsstand),
         aggregat=_aggregat_to_body(eintrag),
+    )
+
+
+def _einstellungen(arbeitsstand: Arbeitsstand) -> LaufEinstellungen:
+    return LaufEinstellungen(
+        modelle=list(arbeitsstand.modelle),
+        max_output_tokens=arbeitsstand.max_output_tokens,
+        reasoning_effort=arbeitsstand.reasoning_effort,
+        web_suche=arbeitsstand.web_suche,
+        search_context_size=arbeitsstand.search_context_size,
+        wiederholungen=arbeitsstand.wiederholungen,
     )
 
 

@@ -47,6 +47,15 @@ class LaufStartResponse(BaseModel):
     gestartet_am: str
 
 
+class LaufEinstellungen(BaseModel):
+    modelle: List[str]
+    max_output_tokens: Optional[int]
+    reasoning_effort: Optional[str]
+    web_suche: bool
+    search_context_size: Optional[str]
+    wiederholungen: int
+
+
 class LaufAggregatBody(BaseModel):
     anzahl_calls: int
     input_tokens: int
@@ -66,7 +75,7 @@ class LaufSummary(BaseModel):
     beendet_am: Optional[str]
     erwartete_calls: int
     fertige_calls: int
-    einstellungen: ArbeitsstandBody
+    einstellungen: LaufEinstellungen
     aggregat: LaufAggregatBody
 
 

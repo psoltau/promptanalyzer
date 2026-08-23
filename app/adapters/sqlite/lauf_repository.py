@@ -3,12 +3,22 @@ from datetime import datetime
 from typing import List, Optional
 
 from app.adapters.sqlite.arbeitsstand_mapping import (
-    ARBEITSSTAND_SPALTEN,
     arbeitsstand_row_to_domain,
     arbeitsstand_to_params,
 )
 from app.adapters.sqlite.time_codec import dt_to_text, text_to_dt
 from app.domain.models import Lauf
+
+_INSERT_SQL = (
+    "INSERT INTO lauf ("
+    "id, profil_id, nummer, gestartet_am, beendet_am, system_prompt, user_prompt, "
+    "tools_json, modelle, max_output_tokens, reasoning_effort, web_suche, "
+    "search_context_size, wiederholungen"
+    ") VALUES ("
+    ":id, :profil_id, :nummer, :gestartet_am, :beendet_am, :system_prompt, :user_prompt, "
+    ":tools_json, :modelle, :max_output_tokens, :reasoning_effort, :web_suche, "
+    ":search_context_size, :wiederholungen)"
+)
 
 
 class SqliteLaufRepository:
@@ -24,14 +34,7 @@ class SqliteLaufRepository:
             "beendet_am": dt_to_text(lauf.beendet_am) if lauf.beendet_am else None,
             **arbeitsstand_to_params(lauf.arbeitsstand),
         }
-        self._connection.execute(
-            "INSERT INTO lauf (id, profil_id, nummer, gestartet_am, beendet_am, "
-            f"{ARBEITSSTAND_SPALTEN}) "
-            "VALUES (:id, :profil_id, :nummer, :gestartet_am, :beendet_am, :system_prompt, "
-            ":user_prompt, :tools_json, :modelle, :max_output_tokens, :reasoning_effort, "
-            ":web_suche, :search_context_size, :wiederholungen)",
-            params,
-        )
+        self._connection.execute(_INSERT_SQL, params)
         self._connection.commit()
 
     def get(self, lauf_id: str) -> Optional[Lauf]:

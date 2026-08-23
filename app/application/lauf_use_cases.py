@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from app.application.ports import (
     LaufExecutionPorts,
-    LaufRepository,
+    LaufStartPorts,
     ModelGatewayError,
     ModelRequest,
     ModelResult,
@@ -15,24 +15,30 @@ from app.application.ports import (
 from app.domain.errors import (
     KeinModellGewaehlt,
     KeyFehlt,
+    ProfilNichtGefunden,
     ToolsJsonUngueltig,
     WiederholungenUngueltig,
 )
-from app.domain.models import Arbeitsstand, Call, CallStatus, Lauf, Profil
+from app.domain.models import Arbeitsstand, Call, CallStatus, Lauf
 
 
-def start_lauf(profil: Profil, api_key: Optional[str], lauf_repo: LaufRepository) -> Lauf:
+def start_lauf(profil_id: str, api_key: Optional[str], ports: LaufStartPorts) -> Lauf:
+    profil = ports.profil_repo.get(profil_id)
+    if profil is None:
+        raise ProfilNichtGefunden()
     arbeitsstand = profil.arbeitsstand
     _validiere_lauf_start(arbeitsstand, api_key)
     lauf = Lauf(
         id=str(uuid4()),
         profil_id=profil.id,
-        nummer=lauf_repo.next_nummer(profil.id),
+        nummer=ports.lauf_repo.next_nummer(profil.id),
         gestartet_am=datetime.now(timezone.utc),
         beendet_am=None,
         arbeitsstand=arbeitsstand,
     )
-    lauf_repo.add(lauf)
+    ports.lauf_repo.add(lauf)
+    assert api_key is not None
+    ports.runner.start(lauf, api_key)
     return lauf
 
 

@@ -4,27 +4,28 @@ from typing import Any, Dict, List, Optional
 from app.adapters.sqlite.time_codec import text_to_dt
 from app.domain.models import Call, CallStatus
 
-_SPALTEN = (
+_INSERT_SQL = (
+    "INSERT INTO call ("
     "id, lauf_id, modell_name, wiederholung_index, status, incomplete_grund, fehlertext, "
     "dauer_ms, input_tokens, cached_input_tokens, reasoning_tokens, output_tokens, "
     "total_tokens, web_search_calls, antwort_text, request_json, response_json, erstellt_am"
+    ") VALUES ("
+    ":id, :lauf_id, :modell_name, :wiederholung_index, :status, :incomplete_grund, "
+    ":fehlertext, :dauer_ms, :input_tokens, :cached_input_tokens, :reasoning_tokens, "
+    ":output_tokens, :total_tokens, :web_search_calls, :antwort_text, :request_json, "
+    ":response_json, :erstellt_am)"
 )
 
 
 class SqliteCallRepository:
+    # Writes commit immediately (unlike the "commit once per request" default):
+    # a background Lauf writes one Call at a time over minutes, and the calls
+    # endpoint polls the same table from other connections to show progress.
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._connection = connection
 
     def add(self, call: Call) -> None:
-        params = _call_to_params(call)
-        self._connection.execute(
-            f"INSERT INTO call ({_SPALTEN}) VALUES "
-            "(:id, :lauf_id, :modell_name, :wiederholung_index, :status, :incomplete_grund, "
-            ":fehlertext, :dauer_ms, :input_tokens, :cached_input_tokens, :reasoning_tokens, "
-            ":output_tokens, :total_tokens, :web_search_calls, :antwort_text, :request_json, "
-            ":response_json, :erstellt_am)",
-            params,
-        )
+        self._connection.execute(_INSERT_SQL, _call_to_params(call))
         self._connection.commit()
 
     def get(self, call_id: str) -> Optional[Call]:

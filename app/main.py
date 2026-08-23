@@ -5,12 +5,13 @@ from pathlib import Path
 from typing import Callable, Iterator, Optional
 from uuid import uuid4
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.adapters.http.deps import (
     get_call_repo,
+    get_connection,
     get_env_api_key,
     get_gateway,
     get_lauf_repo,
@@ -65,21 +66,33 @@ def create_app(db_path: str, gateway: Optional[ModelGateway] = None) -> FastAPI:
 def _wire_dependencies(
     app: FastAPI, db_path: str, gateway: ModelGateway, runner: ThreadedLaufRunner
 ) -> None:
-    app.dependency_overrides[get_profil_repo] = _repo_dependency(db_path, SqliteProfilRepository)
-    app.dependency_overrides[get_lauf_repo] = _repo_dependency(db_path, SqliteLaufRepository)
-    app.dependency_overrides[get_call_repo] = _repo_dependency(db_path, SqliteCallRepository)
+    app.dependency_overrides[get_connection] = _connection_dependency(db_path)
+    app.dependency_overrides[get_profil_repo] = _repo_dependency(SqliteProfilRepository)
+    app.dependency_overrides[get_lauf_repo] = _repo_dependency(SqliteLaufRepository)
+    app.dependency_overrides[get_call_repo] = _repo_dependency(SqliteCallRepository)
     app.dependency_overrides[get_gateway] = lambda: gateway
     app.dependency_overrides[get_lauf_runner] = lambda: runner
     app.dependency_overrides[get_env_api_key] = lambda: os.environ.get("OPENAI_API_KEY")
 
 
-def _repo_dependency(db_path: str, repo_cls: Callable[[sqlite3.Connection], object]):
-    def dependency() -> Iterator[object]:
+def _connection_dependency(db_path: str) -> Callable[[], Iterator[sqlite3.Connection]]:
+    def dependency() -> Iterator[sqlite3.Connection]:
         connection = create_connection(db_path)
         try:
-            yield repo_cls(connection)
+            yield connection
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
         finally:
             connection.close()
+
+    return dependency
+
+
+def _repo_dependency(repo_cls: Callable[[sqlite3.Connection], object]) -> Callable:
+    def dependency(connection: sqlite3.Connection = Depends(get_connection)) -> object:
+        return repo_cls(connection)
 
     return dependency
 

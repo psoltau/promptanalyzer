@@ -1,3 +1,4 @@
+import sqlite3
 from dataclasses import dataclass
 from typing import Optional
 
@@ -7,6 +8,7 @@ from app.application.ports import (
     CallRepository,
     LaufRepository,
     LaufRunner,
+    LaufStartPorts,
     ModelGateway,
     ProfilRepository,
 )
@@ -14,15 +16,19 @@ from app.application.ports import (
 _NICHT_VERDRAHTET = "Dependency wurde nicht in main.py verdrahtet"
 
 
-def get_profil_repo() -> ProfilRepository:
+def get_connection() -> sqlite3.Connection:
     raise RuntimeError(_NICHT_VERDRAHTET)
 
 
-def get_lauf_repo() -> LaufRepository:
+def get_profil_repo(connection: sqlite3.Connection = Depends(get_connection)) -> ProfilRepository:
     raise RuntimeError(_NICHT_VERDRAHTET)
 
 
-def get_call_repo() -> CallRepository:
+def get_lauf_repo(connection: sqlite3.Connection = Depends(get_connection)) -> LaufRepository:
+    raise RuntimeError(_NICHT_VERDRAHTET)
+
+
+def get_call_repo(connection: sqlite3.Connection = Depends(get_connection)) -> CallRepository:
     raise RuntimeError(_NICHT_VERDRAHTET)
 
 
@@ -47,9 +53,7 @@ def resolve_api_key(
 
 @dataclass
 class LaufStartDeps:
-    profil_repo: ProfilRepository
-    lauf_repo: LaufRepository
-    runner: LaufRunner
+    ports: LaufStartPorts
     api_key: Optional[str]
 
 
@@ -59,4 +63,4 @@ def get_lauf_start_deps(
     runner: LaufRunner = Depends(get_lauf_runner),
     api_key: Optional[str] = Depends(resolve_api_key),
 ) -> LaufStartDeps:
-    return LaufStartDeps(profil_repo, lauf_repo, runner, api_key)
+    return LaufStartDeps(LaufStartPorts(profil_repo, lauf_repo, runner), api_key)

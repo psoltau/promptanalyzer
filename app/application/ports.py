@@ -79,3 +79,10 @@ class LaufExecutionPorts:
     gateway: ModelGateway
     call_repo: CallRepository
     lauf_repo: LaufRepository
+
+
+@dataclass
+class LaufStartPorts:
+    profil_repo: ProfilRepository
+    lauf_repo: LaufRepository
+    runner: LaufRunner

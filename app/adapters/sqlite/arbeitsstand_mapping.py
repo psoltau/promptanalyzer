@@ -4,11 +4,6 @@ from typing import Any, Dict
 
 from app.domain.models import Arbeitsstand
 
-ARBEITSSTAND_SPALTEN = (
-    "system_prompt, user_prompt, tools_json, modelle, max_output_tokens, "
-    "reasoning_effort, web_suche, search_context_size, wiederholungen"
-)
-
 
 def arbeitsstand_row_to_domain(row: sqlite3.Row) -> Arbeitsstand:
     return Arbeitsstand(

@@ -3,7 +3,6 @@ from datetime import datetime
 from typing import List, Optional
 
 from app.adapters.sqlite.arbeitsstand_mapping import (
-    ARBEITSSTAND_SPALTEN,
     arbeitsstand_row_to_domain,
     arbeitsstand_to_params,
 )
@@ -19,6 +18,17 @@ GROUP BY p.id
 ORDER BY p.erstellt_am
 """
 
+_INSERT_SQL = (
+    "INSERT INTO profil ("
+    "id, name, erstellt_am, arbeitsstand_geaendert_am, system_prompt, user_prompt, "
+    "tools_json, modelle, max_output_tokens, reasoning_effort, web_suche, "
+    "search_context_size, wiederholungen"
+    ") VALUES ("
+    ":id, :name, :erstellt_am, :arbeitsstand_geaendert_am, :system_prompt, :user_prompt, "
+    ":tools_json, :modelle, :max_output_tokens, :reasoning_effort, :web_suche, "
+    ":search_context_size, :wiederholungen)"
+)
+
 
 class SqliteProfilRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
@@ -32,13 +42,7 @@ class SqliteProfilRepository:
             "arbeitsstand_geaendert_am": dt_to_text(profil.arbeitsstand_geaendert_am),
             **arbeitsstand_to_params(profil.arbeitsstand),
         }
-        self._connection.execute(
-            f"INSERT INTO profil (id, name, erstellt_am, arbeitsstand_geaendert_am, {ARBEITSSTAND_SPALTEN}) "
-            f"VALUES (:id, :name, :erstellt_am, :arbeitsstand_geaendert_am, :system_prompt, :user_prompt, "
-            f":tools_json, :modelle, :max_output_tokens, :reasoning_effort, :web_suche, "
-            f":search_context_size, :wiederholungen)",
-            params,
-        )
+        self._connection.execute(_INSERT_SQL, params)
         self._connection.commit()
 
     def get(self, profil_id: str) -> Optional[Profil]:
