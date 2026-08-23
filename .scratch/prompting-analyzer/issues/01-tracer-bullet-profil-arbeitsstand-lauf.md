@@ -21,11 +21,6 @@ Sein API-Key reist als Header mit dem ausführenden Aufruf; hat er keinen einget
 
 **Blocked by:** None — can start immediately.
 
-**Vorab freizugeben:** ADR 0006 (Tests durch HTTP) und ADR 0007 (Abweichungen vom API-Standard)
-sind Entwürfe mit Status `proposed`. Beide betreffen dieses Ticket unmittelbar — es legt das
-Testmuster für alle weiteren fest und baut die ersten Endpunkte. Pfade und Payloads stehen in
-`docs/api.md`.
-
 **Status:** ready-for-agent
 
 - [ ] Profil anlegen und auflisten

@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Abweichungen vom API-Standard: keine Pagination, keine Sortier-Whitelist

@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Tests laufen durch HTTP, nicht gegen Schichten
