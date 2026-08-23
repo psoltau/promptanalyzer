@@ -10,5 +10,7 @@
   „reparieren". Wer eine davon umstoßen will, ändert zuerst die ADR.
 - **`SPEC.md`** — was gebaut wird: Problem, User Stories, Datenmodell, API-Vertrag,
   Ausführungssemantik, Kostenformel, Out of Scope.
+- **`docs/api.md`** — die verbindliche JSON-Endpunkt-Spezifikation: Pfade, Payloads,
+  Fehlercodes, Key-Header. Keinen Endpunkt erfinden, der dort nicht steht.
 - **`.scratch/prompting-analyzer/issues/`** — die Tickets, in Abhängigkeitsreihenfolge
   nummeriert. Sie beschreiben Verhalten, keine Technik; die Technik steht in `standards/`.

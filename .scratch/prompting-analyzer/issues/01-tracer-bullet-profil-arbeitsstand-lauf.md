@@ -21,9 +21,10 @@ Sein API-Key reist als Header mit dem ausführenden Aufruf; hat er keinen einget
 
 **Blocked by:** None — can start immediately.
 
-**Vorab zu klären:** Die Teststrategie. `SPEC.md` (Testing Decisions) und
-`standards/architecture_backend.md` §8 widersprechen sich; dieses Ticket legt das Muster für alle
-weiteren fest, also muss die Entscheidung vor dem Start stehen.
+**Vorab freizugeben:** ADR 0006 (Tests durch HTTP) und ADR 0007 (Abweichungen vom API-Standard)
+sind Entwürfe mit Status `proposed`. Beide betreffen dieses Ticket unmittelbar — es legt das
+Testmuster für alle weiteren fest und baut die ersten Endpunkte. Pfade und Payloads stehen in
+`docs/api.md`.
 
 **Status:** ready-for-agent
 

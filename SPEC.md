@@ -240,6 +240,8 @@ Aufräumen des Registers überleben.
 
 ### API-Vertrag
 
+Konkrete Pfade, Payloads und Fehlercodes: [docs/api.md](./docs/api.md).
+
 - Profile: auflisten, anlegen, lesen, umbenennen, löschen, duplizieren.
 - Arbeitsstand: ganzheitlich schreiben (das Frontend speichert entprellt nach dem Tippen), und
   „aus Lauf N übernehmen", das den Schnappschuss eines Laufs in den Arbeitsstand kopiert.
