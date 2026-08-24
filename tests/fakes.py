@@ -23,13 +23,23 @@ class VorbereiteteAntwort:
 
 
 class FakeModelGateway:
-    """Der einzige Seam. Liefert vorbereitete Antworten statt echter Netzwerkaufrufe."""
+    """Der einzige Seam. Liefert vorbereitete Antworten statt echter Netzwerkaufrufe.
+
+    Führt außerdem Buch darüber, wie viele Modelle gleichzeitig „im Flug“ sind
+    (`max_gleichzeitige_modelle`) und ob jemals zwei Calls desselben Modells gleichzeitig
+    liefen (`wiederholung_ueberlappung`) — damit Tests die geforderte Ausführungsordnung
+    (parallel über Modelle, seriell über Wiederholungen) über HTTP beobachten können, ohne
+    Produktionscode direkt anzusprechen.
+    """
 
     def __init__(self) -> None:
         self._warteschlangen: Dict[str, List[VorbereiteteAntwort]] = {}
         self._standard = VorbereiteteAntwort()
         self.aufrufe: List[str] = []
         self.verwendete_api_keys: List[str] = []
+        self._aktive_modelle: set = set()
+        self.max_gleichzeitige_modelle = 0
+        self.wiederholung_ueberlappung = False
         self._lock = threading.Lock()
 
     def antworte_mit(self, modell: str, antwort: VorbereiteteAntwort) -> None:
@@ -39,15 +49,20 @@ class FakeModelGateway:
         self._standard = antwort
 
     def run(self, request: ModelRequest) -> ModelResult:
-        with self._lock:
-            self.aufrufe.append(request.model)
-            self.verwendete_api_keys.append(request.api_key)
-        antwort = self._naechste_antwort(request.model)
-        if antwort.verzoegerung_s:
-            time.sleep(antwort.verzoegerung_s)
-        if antwort.fehler:
-            raise ModelGatewayError(antwort.fehler, json.dumps({"model": request.model}))
-        return _zu_model_result(request, antwort)
+        modell = request.model
+        self._markiere_aktiv(modell)
+        try:
+            with self._lock:
+                self.aufrufe.append(modell)
+                self.verwendete_api_keys.append(request.api_key)
+            antwort = self._naechste_antwort(modell)
+            if antwort.verzoegerung_s:
+                time.sleep(antwort.verzoegerung_s)
+            if antwort.fehler:
+                raise ModelGatewayError(antwort.fehler, json.dumps({"model": modell}))
+            return _zu_model_result(request, antwort)
+        finally:
+            self._markiere_inaktiv(modell)
 
     def _naechste_antwort(self, modell: str) -> VorbereiteteAntwort:
         with self._lock:
@@ -55,6 +70,19 @@ class FakeModelGateway:
             if warteschlange:
                 return warteschlange.pop(0)
             return self._standard
+
+    def _markiere_aktiv(self, modell: str) -> None:
+        with self._lock:
+            if modell in self._aktive_modelle:
+                self.wiederholung_ueberlappung = True
+            self._aktive_modelle.add(modell)
+            self.max_gleichzeitige_modelle = max(
+                self.max_gleichzeitige_modelle, len(self._aktive_modelle)
+            )
+
+    def _markiere_inaktiv(self, modell: str) -> None:
+        with self._lock:
+            self._aktive_modelle.discard(modell)
 
 
 @dataclass

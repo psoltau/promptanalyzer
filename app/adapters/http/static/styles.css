@@ -148,3 +148,19 @@ select:disabled {
 .kosten-neuberechnen {
   font-size: 0.85rem;
 }
+
+.lauf-aggregat-zeile {
+  background: #eef6ff;
+  font-weight: 600;
+}
+
+#call-vorschau {
+  font-size: 0.9rem;
+  color: #444;
+}
+
+#modelle-feld {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin: 0.5rem 0;
+}
