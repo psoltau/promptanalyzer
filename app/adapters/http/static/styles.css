@@ -135,3 +135,8 @@ textarea {
 .call-detail-json {
   font-family: ui-monospace, Menlo, monospace;
 }
+
+select:disabled {
+  background: #eee;
+  color: #888;
+}
