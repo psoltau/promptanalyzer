@@ -28,6 +28,14 @@ class ProfilCreateBody(BaseModel):
     name: str
 
 
+class ProfilRenameBody(BaseModel):
+    name: str
+
+
+class ProfilDuplicateBody(BaseModel):
+    name: Optional[str] = None
+
+
 class ProfilDetail(BaseModel):
     id: str
     name: str

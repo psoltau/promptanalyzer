@@ -56,6 +56,9 @@ class ProfilRepository(Protocol):
         self, profil_id: str, arbeitsstand: Arbeitsstand, geaendert_am: datetime
     ) -> None: ...
 
+    def update_name(self, profil_id: str, name: str) -> None: ...
+    def delete(self, profil_id: str) -> None: ...
+
 
 class LaufRepository(Protocol):
     def add(self, lauf: Lauf) -> None: ...
@@ -108,3 +111,16 @@ class LaufKostenPorts:
     lauf_repo: LaufRepository
     call_repo: CallRepository
     modell_repo: ModellRepository
+
+
+@dataclass
+class ProfilDuplicationPorts:
+    profil_repo: ProfilRepository
+    lauf_repo: LaufRepository
+    call_repo: CallRepository
+
+
+@dataclass
+class ArbeitsstandUebernahmePorts:
+    profil_repo: ProfilRepository
+    lauf_repo: LaufRepository

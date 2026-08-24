@@ -74,6 +74,21 @@ class SqliteProfilRepository:
         )
         self._connection.commit()
 
+    def update_name(self, profil_id: str, name: str) -> None:
+        self._connection.execute(
+            "UPDATE profil SET name = ? WHERE id = ?", (name, profil_id)
+        )
+        self._connection.commit()
+
+    def delete(self, profil_id: str) -> None:
+        self._connection.execute(
+            "DELETE FROM call WHERE lauf_id IN (SELECT id FROM lauf WHERE profil_id = ?)",
+            (profil_id,),
+        )
+        self._connection.execute("DELETE FROM lauf WHERE profil_id = ?", (profil_id,))
+        self._connection.execute("DELETE FROM profil WHERE id = ?", (profil_id,))
+        self._connection.commit()
+
 
 def _row_to_profil(row: sqlite3.Row) -> Profil:
     return Profil(
