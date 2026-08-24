@@ -1,10 +1,11 @@
 import json
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 from app.application.ports import ModelGatewayError, ModelRequest, ModelResult
+from app.domain.models import Modell
 
 
 @dataclass
@@ -54,6 +55,28 @@ class FakeModelGateway:
             if warteschlange:
                 return warteschlange.pop(0)
             return self._standard
+
+
+@dataclass
+class FakeModellRepository:
+    """In-memory-Register für Use-Case-Tests, kein SQLite beteiligt."""
+
+    _speicher: Dict[str, Modell] = field(default_factory=dict)
+
+    def add(self, modell: Modell) -> None:
+        self._speicher[modell.name] = modell
+
+    def get(self, name: str) -> Optional[Modell]:
+        return self._speicher.get(name)
+
+    def list(self) -> List[Modell]:
+        return list(self._speicher.values())
+
+    def update(self, modell: Modell) -> None:
+        self._speicher[modell.name] = modell
+
+    def delete(self, name: str) -> None:
+        self._speicher.pop(name, None)
 
 
 def _zu_model_result(request: ModelRequest, antwort: VorbereiteteAntwort) -> ModelResult:

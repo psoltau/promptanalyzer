@@ -12,12 +12,14 @@ from app.adapters.http.schemas import (
     LaufEinstellungen,
     LaufStartResponse,
     LaufSummary,
+    ModellItem,
+    ModellUpdateBody,
     PreiseBody,
     ProfilDetail,
     ProfilListItem,
 )
 from app.application.calls_use_cases import CallDetailView, CallsView, LaufUebersichtEintrag
-from app.domain.models import Arbeitsstand, Call, Lauf, Profil, ProfilUebersicht
+from app.domain.models import Arbeitsstand, Call, Lauf, Modell, Profil, ProfilUebersicht
 
 
 def to_iso_z(dt: datetime) -> str:
@@ -170,6 +172,35 @@ def _call_tokens(call: Call) -> Dict[str, Optional[int]]:
         "total_tokens": call.total_tokens,
         "web_search_calls": call.web_search_calls,
     }
+
+
+def modell_to_item(modell: Modell) -> ModellItem:
+    return ModellItem(
+        name=modell.name,
+        preis_input=modell.preis_input,
+        preis_cached_input=modell.preis_cached_input,
+        preis_output=modell.preis_output,
+        preis_suche=modell.preis_suche,
+        kontextfenster=modell.kontextfenster,
+        erlaubt_reasoning_effort=modell.erlaubt_reasoning_effort,
+        erlaubt_web_suche=modell.erlaubt_web_suche,
+        unterstuetzt_prompt_caching=modell.unterstuetzt_prompt_caching,
+        preise_vollstaendig=modell.preise_vollstaendig,
+    )
+
+
+def modell_update_body_to_modell(name: str, body: ModellUpdateBody) -> Modell:
+    return Modell(
+        name=name,
+        preis_input=body.preis_input,
+        preis_cached_input=body.preis_cached_input,
+        preis_output=body.preis_output,
+        preis_suche=body.preis_suche,
+        kontextfenster=body.kontextfenster,
+        erlaubt_reasoning_effort=body.erlaubt_reasoning_effort,
+        erlaubt_web_suche=body.erlaubt_web_suche,
+        unterstuetzt_prompt_caching=body.unterstuetzt_prompt_caching,
+    )
 
 
 def call_detail_view_to_schema(view: CallDetailView) -> CallDetail:

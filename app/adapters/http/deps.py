@@ -10,6 +10,7 @@ from app.application.ports import (
     LaufRunner,
     LaufStartPorts,
     ModelGateway,
+    ModellRepository,
     ProfilRepository,
 )
 
@@ -29,6 +30,10 @@ def get_lauf_repo(connection: sqlite3.Connection = Depends(get_connection)) -> L
 
 
 def get_call_repo(connection: sqlite3.Connection = Depends(get_connection)) -> CallRepository:
+    raise RuntimeError(_NICHT_VERDRAHTET)
+
+
+def get_modell_repo(connection: sqlite3.Connection = Depends(get_connection)) -> ModellRepository:
     raise RuntimeError(_NICHT_VERDRAHTET)
 
 

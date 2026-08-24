@@ -16,6 +16,7 @@ from app.adapters.http.deps import (
     get_gateway,
     get_lauf_repo,
     get_lauf_runner,
+    get_modell_repo,
     get_profil_repo,
 )
 from app.adapters.http.routes import router
@@ -24,13 +25,16 @@ from app.adapters.sqlite.call_repository import SqliteCallRepository
 from app.adapters.sqlite.connection import create_connection
 from app.adapters.sqlite.lauf_repository import SqliteLaufRepository
 from app.adapters.sqlite.lauf_runner import ThreadedLaufRunner
+from app.adapters.sqlite.modell_repository import SqliteModellRepository
 from app.adapters.sqlite.profil_repository import SqliteProfilRepository
-from app.adapters.sqlite.schema import ensure_schema
+from app.adapters.sqlite.schema import ensure_schema, seed_modell_register_if_empty
 from app.application.ports import ModelGateway
 from app.domain.errors import (
     CallNichtGefunden,
     KeinModellGewaehlt,
     KeyFehlt,
+    ModellNameVergeben,
+    ModellNichtGefunden,
     NameLeer,
     ProfilNichtGefunden,
     ToolsJsonUngueltig,
@@ -42,16 +46,18 @@ logger = logging.getLogger(__name__)
 _ERROR_MAP = {
     ProfilNichtGefunden: (404, "PROFIL_NICHT_GEFUNDEN"),
     CallNichtGefunden: (404, "CALL_NICHT_GEFUNDEN"),
+    ModellNichtGefunden: (404, "MODELL_NICHT_GEFUNDEN"),
     NameLeer: (422, "NAME_LEER"),
     KeinModellGewaehlt: (422, "KEIN_MODELL_GEWAEHLT"),
     WiederholungenUngueltig: (422, "WIEDERHOLUNGEN_UNGUELTIG"),
     ToolsJsonUngueltig: (422, "TOOLS_JSON_UNGUELTIG"),
+    ModellNameVergeben: (409, "MODELL_NAME_VERGEBEN"),
     KeyFehlt: (400, "KEY_FEHLT"),
 }
 
 
 def create_app(db_path: str, gateway: Optional[ModelGateway] = None) -> FastAPI:
-    ensure_schema(create_connection(db_path))
+    _initialize_database(db_path)
     real_gateway = gateway or OpenAiResponsesGateway()
     runner = ThreadedLaufRunner(lambda: create_connection(db_path), real_gateway)
 
@@ -70,9 +76,17 @@ def _wire_dependencies(
     app.dependency_overrides[get_profil_repo] = _repo_dependency(SqliteProfilRepository)
     app.dependency_overrides[get_lauf_repo] = _repo_dependency(SqliteLaufRepository)
     app.dependency_overrides[get_call_repo] = _repo_dependency(SqliteCallRepository)
+    app.dependency_overrides[get_modell_repo] = _repo_dependency(SqliteModellRepository)
     app.dependency_overrides[get_gateway] = lambda: gateway
     app.dependency_overrides[get_lauf_runner] = lambda: runner
     app.dependency_overrides[get_env_api_key] = lambda: os.environ.get("OPENAI_API_KEY")
+
+
+def _initialize_database(db_path: str) -> None:
+    connection = create_connection(db_path)
+    ensure_schema(connection)
+    seed_modell_register_if_empty(connection)
+    connection.close()
 
 
 def _connection_dependency(db_path: str) -> Callable[[], Iterator[sqlite3.Connection]]:

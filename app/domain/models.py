@@ -75,6 +75,41 @@ class Lauf:
 
 
 @dataclass(frozen=True)
+class Modell:
+    name: str
+    preis_input: Optional[float]
+    preis_cached_input: Optional[float]
+    preis_output: Optional[float]
+    preis_suche: Optional[float]
+    kontextfenster: Optional[int]
+    erlaubt_reasoning_effort: bool
+    erlaubt_web_suche: bool
+    unterstuetzt_prompt_caching: bool
+
+    @staticmethod
+    def neu(name: str) -> "Modell":
+        return Modell(
+            name=name,
+            preis_input=None,
+            preis_cached_input=None,
+            preis_output=None,
+            preis_suche=None,
+            kontextfenster=None,
+            erlaubt_reasoning_effort=True,
+            erlaubt_web_suche=True,
+            unterstuetzt_prompt_caching=True,
+        )
+
+    @property
+    def preise_vollstaendig(self) -> bool:
+        return (
+            self.preis_input is not None
+            and self.preis_cached_input is not None
+            and self.preis_output is not None
+        )
+
+
+@dataclass(frozen=True)
 class Call:
     id: str
     lauf_id: str
