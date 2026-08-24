@@ -49,3 +49,22 @@ export function getCalls(profilId) {
 export function getCall(callId) {
   return anfrage(`/call/${callId}`);
 }
+
+export function getModelle() {
+  return anfrage("/modelle");
+}
+
+export function createModell(name) {
+  return anfrage("/modelle", { method: "POST", body: JSON.stringify({ name }) });
+}
+
+export function updateModell(name, felder) {
+  return anfrage(`/modelle/${encodeURIComponent(name)}`, {
+    method: "PUT",
+    body: JSON.stringify(felder),
+  });
+}
+
+export function deleteModell(name) {
+  return anfrage(`/modelle/${encodeURIComponent(name)}`, { method: "DELETE" });
+}

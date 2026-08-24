@@ -3,6 +3,7 @@ import { listProfiles, createProfile } from "./api.js";
 export async function renderProfiles(app) {
   app.innerHTML = `
     <h1>Profile</h1>
+    <p><a href="#/register">Modell-Register</a></p>
     <form id="neues-profil">
       <input id="neuer-name" type="text" placeholder="Name des Profils" required />
       <button type="submit">Anlegen</button>

@@ -115,6 +115,34 @@ class PreiseBody(BaseModel):
     preis_suche: Optional[float]
 
 
+class ModellItem(BaseModel):
+    name: str
+    preis_input: Optional[float]
+    preis_cached_input: Optional[float]
+    preis_output: Optional[float]
+    preis_suche: Optional[float]
+    kontextfenster: Optional[int]
+    erlaubt_reasoning_effort: bool
+    erlaubt_web_suche: bool
+    unterstuetzt_prompt_caching: bool
+    preise_vollstaendig: bool
+
+
+class ModellCreateBody(BaseModel):
+    name: str
+
+
+class ModellUpdateBody(BaseModel):
+    preis_input: Optional[float]
+    preis_cached_input: Optional[float]
+    preis_output: Optional[float]
+    preis_suche: Optional[float]
+    kontextfenster: Optional[int]
+    erlaubt_reasoning_effort: bool
+    erlaubt_web_suche: bool
+    unterstuetzt_prompt_caching: bool
+
+
 class KeyStatusResponse(BaseModel):
     umgebungs_key_vorhanden: bool
 

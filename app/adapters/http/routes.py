@@ -8,6 +8,7 @@ from app.adapters.http.deps import (
     get_env_api_key,
     get_lauf_repo,
     get_lauf_start_deps,
+    get_modell_repo,
     get_profil_repo,
 )
 from app.adapters.http.mappers import (
@@ -16,6 +17,8 @@ from app.adapters.http.mappers import (
     calls_view_to_response,
     env_key_to_status,
     lauf_to_start_response,
+    modell_to_item,
+    modell_update_body_to_modell,
     profil_to_detail,
     profil_uebersicht_to_item,
     to_iso_z,
@@ -27,6 +30,9 @@ from app.adapters.http.schemas import (
     CallsResponse,
     KeyStatusResponse,
     LaufStartResponse,
+    ModellCreateBody,
+    ModellItem,
+    ModellUpdateBody,
     ProfilCreateBody,
     ProfilDetail,
     ProfilListItem,
@@ -34,7 +40,13 @@ from app.adapters.http.schemas import (
 from app.application.arbeitsstand_use_cases import save_arbeitsstand
 from app.application.calls_use_cases import get_call_view, list_calls_view
 from app.application.lauf_use_cases import start_lauf
-from app.application.ports import CallRepository, LaufRepository, ProfilRepository
+from app.application.modell_use_cases import (
+    create_modell,
+    delete_modell,
+    list_modelle,
+    update_modell,
+)
+from app.application.ports import CallRepository, LaufRepository, ModellRepository, ProfilRepository
 from app.application.profile_use_cases import create_profile, get_profile, list_profiles
 
 router = APIRouter(prefix="/api/v1")
@@ -100,3 +112,30 @@ def get_call_route(
     lauf_repo: LaufRepository = Depends(get_lauf_repo),
 ) -> CallDetail:
     return call_detail_view_to_schema(get_call_view(call_id, call_repo, lauf_repo))
+
+
+@router.get("/modelle", response_model=List[ModellItem])
+def list_modelle_route(repo: ModellRepository = Depends(get_modell_repo)) -> List[ModellItem]:
+    return [modell_to_item(m) for m in list_modelle(repo)]
+
+
+@router.post("/modelle", response_model=ModellItem, status_code=201)
+def create_modell_route(
+    body: ModellCreateBody, response: Response, repo: ModellRepository = Depends(get_modell_repo)
+) -> ModellItem:
+    modell = create_modell(body.name, repo)
+    response.headers["Location"] = f"/api/v1/modelle/{modell.name}"
+    return modell_to_item(modell)
+
+
+@router.put("/modelle/{name}", response_model=ModellItem)
+def update_modell_route(
+    name: str, body: ModellUpdateBody, repo: ModellRepository = Depends(get_modell_repo)
+) -> ModellItem:
+    modell = update_modell(modell_update_body_to_modell(name, body), repo)
+    return modell_to_item(modell)
+
+
+@router.delete("/modelle/{name}", status_code=204)
+def delete_modell_route(name: str, repo: ModellRepository = Depends(get_modell_repo)) -> None:
+    delete_modell(name, repo)

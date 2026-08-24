@@ -35,3 +35,13 @@ class ToolsJsonUngueltig(DomainError):
 class KeyFehlt(DomainError):
     def __init__(self) -> None:
         super().__init__("Kein API-Key im Header und keiner in der Umgebung")
+
+
+class ModellNichtGefunden(DomainError):
+    def __init__(self) -> None:
+        super().__init__("Modell nicht gefunden")
+
+
+class ModellNameVergeben(DomainError):
+    def __init__(self) -> None:
+        super().__init__("Modellname ist bereits vergeben")
