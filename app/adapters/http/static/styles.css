@@ -27,6 +27,43 @@ th, td {
   background: #f3f3f3;
 }
 
+th.sortierbar {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+th.sortierbar:hover {
+  background: #eaeaea;
+}
+
+.status-complete {
+  color: #1a7f37;
+  font-weight: 600;
+}
+
+.status-incomplete {
+  color: #9a6700;
+  font-weight: 600;
+}
+
+.status-error {
+  color: #cf222e;
+  font-weight: 700;
+}
+
+#fortschritt {
+  background: #eef6ff;
+  border: 1px solid #b6d4f5;
+  border-radius: 4px;
+  padding: 0.4rem 0.75rem;
+  margin: 0.75rem 0;
+}
+
+#fortschritt p {
+  margin: 0.2rem 0;
+}
+
 textarea {
   width: 100%;
   max-width: 640px;

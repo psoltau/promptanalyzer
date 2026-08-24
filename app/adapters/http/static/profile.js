@@ -1,20 +1,48 @@
-import { getProfile, saveArbeitsstand, startLauf, getCalls, getCall, getKeyStatus } from "./api.js";
+import { getProfile, saveArbeitsstand, startLauf, getCalls, getKeyStatus } from "./api.js";
+import { zeigeCallDetail } from "./call_detail.js";
 
 const SPEICHER_VERZOEGERUNG_MS = 800;
 const POLL_INTERVALL_MS = 1000;
 const API_KEY_STORAGE = "prompting_analyzer_api_key";
+const KOSTEN_DEZIMALSTELLEN = 4;
+
+const SPALTEN = [
+  { key: "lauf_nummer", label: "Lauf" },
+  { key: "modell_name", label: "Modell" },
+  { key: "wiederholung_index", label: "#" },
+  { key: "einstellungen", label: "Einstellungen" },
+  { key: "status", label: "Status" },
+  { key: "input_tokens", label: "Input" },
+  { key: "cached_input_tokens", label: "Cached" },
+  { key: "reasoning_tokens", label: "Reasoning" },
+  { key: "output_tokens", label: "Output" },
+  { key: "total_tokens", label: "Total" },
+  { key: "kosten_usd", label: "Kosten (USD)" },
+  { key: "dauer_ms", label: "Dauer (ms)" },
+];
 
 let speicherTimer = null;
 let pollTimer = null;
+let sortSpalte = null;
+let sortAufsteigend = true;
+let letzteLaeufe = [];
+let letzteCalls = [];
 
 export async function renderProfile(app, profilId) {
   stoppePolling();
+  setzeSortierungZurueck();
   const [profil, keyStatus] = await Promise.all([getProfile(profilId), getKeyStatus()]);
   app.innerHTML = vorlage(profil);
   fuelleFormular(app, profil.arbeitsstand);
   bindeFormular(app, profilId, keyStatus);
   aktualisiereKeyQuelle(app, keyStatus);
-  await aktualisiereCalls(app, profilId);
+  const laeuftNoch = await aktualisiereCalls(app, profilId);
+  if (laeuftNoch) startePolling(app, profilId);
+}
+
+function setzeSortierungZurueck() {
+  sortSpalte = null;
+  sortAufsteigend = true;
 }
 
 function vorlage(profil) {
@@ -133,67 +161,123 @@ function stoppePolling() {
 
 async function aktualisiereCalls(app, profilId) {
   const daten = await getCalls(profilId);
-  app.querySelector("#calls").innerHTML = renderCallsTabelle(daten);
-  bindeCallZeilen(app);
+  letzteLaeufe = daten.laeufe;
+  letzteCalls = daten.calls.map(anreichern);
+  renderUndBindeCalls(app);
   return daten.laeufe.some((lauf) => lauf.beendet_am === null);
 }
 
-function renderCallsTabelle(daten) {
-  if (daten.calls.length === 0) return "<p>Noch keine Läufe.</p>";
-  const zeilen = daten.calls.map(callZeile).join("");
-  return `
-    <table>
-      <thead>
-        <tr>
-          <th>Lauf</th><th>Modell</th><th>#</th><th>Status</th>
-          <th>Input</th><th>Cached</th><th>Reasoning</th><th>Output</th><th>Total</th>
-          <th>Dauer (ms)</th>
-        </tr>
-      </thead>
-      <tbody>${zeilen}</tbody>
-    </table>
-  `;
+function renderUndBindeCalls(app) {
+  const sortiert = sortiereCalls(letzteCalls, sortSpalte, sortAufsteigend);
+  app.querySelector("#calls").innerHTML = renderCallsBereich(letzteLaeufe, sortiert);
+  bindeCallZeilen(app);
+  bindeSortierHeader(app);
+}
+
+function anreichern(call) {
+  return { ...call, einstellungen: einstellungenText(call) };
+}
+
+function einstellungenText(call) {
+  const teile = [`max=${call.max_output_tokens ?? "–"}`];
+  if (call.reasoning_effort) teile.push(`reasoning=${call.reasoning_effort}`);
+  if (call.web_suche) teile.push("web_suche");
+  if (call.search_context_size) teile.push(`suchkontext=${call.search_context_size}`);
+  return teile.join(", ");
+}
+
+function sortiereCalls(calls, spalte, aufsteigend) {
+  if (!spalte) return calls;
+  const kopie = [...calls];
+  kopie.sort((a, b) => vergleiche(a[spalte], b[spalte]) * (aufsteigend ? 1 : -1));
+  return kopie;
+}
+
+function vergleiche(a, b) {
+  if (typeof a === "number" && typeof b === "number") return a - b;
+  return String(a ?? "").localeCompare(String(b ?? ""));
+}
+
+function bindeSortierHeader(app) {
+  app.querySelectorAll("th[data-sort-key]").forEach((th) => {
+    th.addEventListener("click", () => sortiereNach(app, th.dataset.sortKey));
+  });
+}
+
+function sortiereNach(app, spalte) {
+  if (sortSpalte === spalte) {
+    sortAufsteigend = !sortAufsteigend;
+  } else {
+    sortSpalte = spalte;
+    sortAufsteigend = true;
+  }
+  renderUndBindeCalls(app);
+}
+
+function renderCallsBereich(laeufe, calls) {
+  if (calls.length === 0) return "<p>Noch keine Läufe.</p>";
+  return renderFortschritt(laeufe) + renderCallsTabelle(calls);
+}
+
+function renderFortschritt(laeufe) {
+  const laufende = laeufe.filter((lauf) => lauf.beendet_am === null);
+  if (laufende.length === 0) return "";
+  const zeilen = laufende.map(fortschrittsZeile).join("");
+  return `<div id="fortschritt">${zeilen}</div>`;
+}
+
+function fortschrittsZeile(lauf) {
+  return `<p>Lauf ${lauf.nummer}: ${lauf.fertige_calls} von ${lauf.erwartete_calls} Calls fertig</p>`;
+}
+
+function renderCallsTabelle(calls) {
+  const kopfzeile = SPALTEN.map(kopfZelle).join("");
+  const zeilen = calls.map(callZeile).join("");
+  return `<table><thead><tr>${kopfzeile}</tr></thead><tbody>${zeilen}</tbody></table>`;
+}
+
+function kopfZelle(spalte) {
+  const pfeil = sortSpalte === spalte.key ? (sortAufsteigend ? " ▲" : " ▼") : "";
+  return `<th data-sort-key="${spalte.key}" class="sortierbar">${spalte.label}${pfeil}</th>`;
 }
 
 function callZeile(call) {
-  const status =
-    call.status === "incomplete" ? `incomplete (${call.incomplete_grund})` : call.status;
   return `
     <tr class="call-zeile" data-call-id="${call.id}">
       <td>${call.lauf_nummer}</td>
       <td>${escapeHtml(call.modell_name)}</td>
       <td>${call.wiederholung_index}</td>
-      <td>${status}</td>
+      <td>${escapeHtml(call.einstellungen)}</td>
+      <td><span class="${statusKlasse(call.status)}">${statusText(call)}</span></td>
       <td>${call.input_tokens ?? ""}</td>
       <td>${call.cached_input_tokens ?? ""}</td>
       <td>${call.reasoning_tokens ?? ""}</td>
       <td>${call.output_tokens ?? ""}</td>
       <td>${call.total_tokens ?? ""}</td>
-      <td>${call.dauer_ms}</td>
+      <td>${formatKosten(call.kosten_usd)}</td>
+      <td>${call.dauer_ms ?? ""}</td>
     </tr>
-    <tr class="call-detail" data-call-detail="${call.id}" hidden><td colspan="10"></td></tr>
+    <tr class="call-detail" data-call-detail="${call.id}" hidden><td colspan="${SPALTEN.length}"></td></tr>
   `;
+}
+
+function statusText(call) {
+  if (call.status === "incomplete") return `incomplete (${call.incomplete_grund})`;
+  return call.status;
+}
+
+function statusKlasse(status) {
+  return `status-${status}`;
+}
+
+function formatKosten(kosten) {
+  return kosten === null || kosten === undefined ? "" : kosten.toFixed(KOSTEN_DEZIMALSTELLEN);
 }
 
 function bindeCallZeilen(app) {
   app.querySelectorAll(".call-zeile").forEach((zeile) => {
     zeile.addEventListener("click", () => zeigeCallDetail(app, zeile.dataset.callId));
   });
-}
-
-async function zeigeCallDetail(app, callId) {
-  const detailZeile = app.querySelector(`[data-call-detail="${callId}"]`);
-  const sichtbar = !detailZeile.hidden;
-  if (sichtbar) {
-    detailZeile.hidden = true;
-    return;
-  }
-  const call = await getCall(callId);
-  const zelle = detailZeile.querySelector("td");
-  zelle.textContent = call.fehlertext
-    ? `Fehler: ${call.fehlertext}`
-    : call.antwort_text || "(leere Antwort)";
-  detailZeile.hidden = false;
 }
 
 function escapeHtml(text) {
