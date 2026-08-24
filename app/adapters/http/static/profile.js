@@ -1,4 +1,4 @@
-import { getProfile, saveArbeitsstand, startLauf, getCalls, getKeyStatus } from "./api.js";
+import { getProfile, saveArbeitsstand, startLauf, getCalls, getKeyStatus, getModelle } from "./api.js";
 import { zeigeCallDetail } from "./call_detail.js";
 
 const SPEICHER_VERZOEGERUNG_MS = 800;
@@ -31,10 +31,14 @@ let letzteCalls = [];
 export async function renderProfile(app, profilId) {
   stoppePolling();
   setzeSortierungZurueck();
-  const [profil, keyStatus] = await Promise.all([getProfile(profilId), getKeyStatus()]);
+  const [profil, keyStatus, modelle] = await Promise.all([
+    getProfile(profilId),
+    getKeyStatus(),
+    getModelle(),
+  ]);
   app.innerHTML = vorlage(profil);
-  fuelleFormular(app, profil.arbeitsstand);
-  bindeFormular(app, profilId, keyStatus);
+  fuelleFormular(app, profil.arbeitsstand, modelle);
+  bindeFormular(app, profilId, { keyStatus, modelle });
   aktualisiereKeyQuelle(app, keyStatus);
   const laeuftNoch = await aktualisiereCalls(app, profilId);
   if (laeuftNoch) startePolling(app, profilId);
@@ -55,7 +59,7 @@ function vorlage(profil) {
       <label>User Prompt<br/><textarea id="user_prompt" rows="6" cols="80"></textarea></label><br/>
       <label>Tool-Definitionen (JSON)<br/><textarea id="tools_json" rows="6" cols="80"></textarea></label>
       <p id="tools-json-fehler" class="feld-fehler"></p>
-      <label>Modell <input id="modell" type="text" placeholder="z.B. gpt-5" /></label><br/>
+      <label>Modell <select id="modell"></select></label><br/>
       <label>max_output_tokens <input id="max_output_tokens" type="number" min="1" /></label><br/>
       <label>reasoning_effort
         <select id="reasoning_effort">
@@ -76,31 +80,78 @@ function vorlage(profil) {
   `;
 }
 
-function fuelleFormular(app, arbeitsstand) {
+function fuelleFormular(app, arbeitsstand, modelle) {
   app.querySelector("#system_prompt").value = arbeitsstand.system_prompt;
   app.querySelector("#user_prompt").value = arbeitsstand.user_prompt;
   app.querySelector("#tools_json").value = arbeitsstand.tools_json ?? "";
-  app.querySelector("#modell").value = arbeitsstand.modelle[0] || "";
+  fuelleModellOptionen(app, modelle, arbeitsstand.modelle[0] || "");
   app.querySelector("#max_output_tokens").value = arbeitsstand.max_output_tokens ?? "";
   app.querySelector("#reasoning_effort").value = arbeitsstand.reasoning_effort || "";
   app.querySelector("#api_key").value = window.localStorage.getItem(API_KEY_STORAGE) || "";
   pruefeToolsJson(app);
+  wendeGatingAn(app, modelle);
 }
 
-function bindeFormular(app, profilId, keyStatus) {
-  const felder = ["system_prompt", "user_prompt", "tools_json", "modell", "max_output_tokens", "reasoning_effort"];
+function fuelleModellOptionen(app, modelle, ausgewaehlterName) {
+  const select = app.querySelector("#modell");
+  select.innerHTML = modellOptionenMarkup(modelle, ausgewaehlterName);
+  select.value = ausgewaehlterName;
+}
+
+function modellOptionenMarkup(modelle, ausgewaehlterName) {
+  const bekannteNamen = modelle.map((modell) => modell.name);
+  const optionen = modelle.map(modellOptionMarkup);
+  if (ausgewaehlterName && !bekannteNamen.includes(ausgewaehlterName)) {
+    optionen.push(unbekannteModellOptionMarkup(ausgewaehlterName));
+  }
+  return `<option value="">(kein Modell)</option>${optionen.join("")}`;
+}
+
+function modellOptionMarkup(modell) {
+  const hinweis = modell.preise_vollstaendig ? "" : " — keine Preise gepflegt";
+  return `<option value="${escapeHtml(modell.name)}">${escapeHtml(modell.name)}${hinweis}</option>`;
+}
+
+function unbekannteModellOptionMarkup(name) {
+  return `<option value="${escapeHtml(name)}">${escapeHtml(name)} — nicht im Register</option>`;
+}
+
+function bindeFormular(app, profilId, kontext) {
+  const felder = ["system_prompt", "user_prompt", "tools_json", "max_output_tokens", "reasoning_effort"];
   felder.forEach((id) => {
     app.querySelector(`#${id}`).addEventListener("input", () => planeSpeichern(app, profilId));
+  });
+  app.querySelector("#modell").addEventListener("change", () => {
+    wendeGatingAn(app, kontext.modelle);
+    planeSpeichern(app, profilId);
   });
   app.querySelector("#tools_json").addEventListener("input", () => pruefeToolsJson(app));
   app.querySelector("#api_key").addEventListener("input", (event) => {
     window.localStorage.setItem(API_KEY_STORAGE, event.target.value);
-    aktualisiereKeyQuelle(app, keyStatus);
+    aktualisiereKeyQuelle(app, kontext.keyStatus);
   });
   app.querySelector("#arbeitsstand-form").addEventListener("submit", (event) => {
     event.preventDefault();
     ausfuehren(app, profilId);
   });
+}
+
+function wendeGatingAn(app, modelle) {
+  const ausgewaehltesModell = findeModell(modelle, app.querySelector("#modell").value);
+  setzeFeldGating(app.querySelector("#reasoning_effort"), istErlaubt(ausgewaehltesModell, "erlaubt_reasoning_effort"));
+}
+
+function findeModell(modelle, name) {
+  return modelle.find((modell) => modell.name === name) || null;
+}
+
+function istErlaubt(modell, faehigkeitsschalter) {
+  return modell === null || modell[faehigkeitsschalter];
+}
+
+function setzeFeldGating(feld, erlaubt) {
+  feld.disabled = !erlaubt;
+  if (!erlaubt) feld.value = "";
 }
 
 function pruefeToolsJson(app) {
@@ -151,11 +202,16 @@ function liesFormular(app) {
     tools_json: liesToolsJson(app),
     modelle: modell ? [modell] : [],
     max_output_tokens: maxTokens ? Number(maxTokens) : null,
-    reasoning_effort: app.querySelector("#reasoning_effort").value || null,
+    reasoning_effort: liesGegatetesFeld(app, "#reasoning_effort"),
     web_suche: false,
     search_context_size: null,
     wiederholungen: 1,
   };
+}
+
+function liesGegatetesFeld(app, selector) {
+  const feld = app.querySelector(selector);
+  return feld.disabled ? null : feld.value || null;
 }
 
 function liesToolsJson(app) {
