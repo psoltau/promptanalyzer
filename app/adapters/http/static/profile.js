@@ -75,7 +75,12 @@ function vorlage(profil) {
       <label>User Prompt<br/><textarea id="user_prompt" rows="6" cols="80"></textarea></label><br/>
       <label>Tool-Definitionen (JSON)<br/><textarea id="tools_json" rows="6" cols="80"></textarea></label>
       <p id="tools-json-fehler" class="feld-fehler"></p>
-      <label>Modell <select id="modell"></select></label><br/>
+      <fieldset id="modelle-feld">
+        <legend>Modelle</legend>
+        <div id="modelle-auswahl"></div>
+      </fieldset>
+      <label>Wiederholungen <input id="wiederholungen" type="number" min="1" value="1" /></label><br/>
+      <p id="call-vorschau"></p>
       <label>max_output_tokens <input id="max_output_tokens" type="number" min="1" /></label><br/>
       <label>reasoning_effort
         <select id="reasoning_effort">
@@ -100,45 +105,64 @@ function fuelleFormular(app, arbeitsstand, modelle) {
   app.querySelector("#system_prompt").value = arbeitsstand.system_prompt;
   app.querySelector("#user_prompt").value = arbeitsstand.user_prompt;
   app.querySelector("#tools_json").value = arbeitsstand.tools_json ?? "";
-  fuelleModellOptionen(app, modelle, arbeitsstand.modelle[0] || "");
+  fuelleModelleAuswahl(app, modelle, arbeitsstand.modelle);
+  app.querySelector("#wiederholungen").value = arbeitsstand.wiederholungen ?? 1;
   app.querySelector("#max_output_tokens").value = arbeitsstand.max_output_tokens ?? "";
   app.querySelector("#reasoning_effort").value = arbeitsstand.reasoning_effort || "";
   app.querySelector("#api_key").value = window.localStorage.getItem(API_KEY_STORAGE) || "";
   pruefeToolsJson(app);
   wendeGatingAn(app, modelle);
+  aktualisiereVorschau(app);
 }
 
-function fuelleModellOptionen(app, modelle, ausgewaehlterName) {
-  const select = app.querySelector("#modell");
-  select.innerHTML = modellOptionenMarkup(modelle, ausgewaehlterName);
-  select.value = ausgewaehlterName;
+function fuelleModelleAuswahl(app, modelle, ausgewaehlteNamen) {
+  app.querySelector("#modelle-auswahl").innerHTML = modelleAuswahlMarkup(modelle, ausgewaehlteNamen);
 }
 
-function modellOptionenMarkup(modelle, ausgewaehlterName) {
+function modelleAuswahlMarkup(modelle, ausgewaehlteNamen) {
   const bekannteNamen = modelle.map((modell) => modell.name);
-  const optionen = modelle.map(modellOptionMarkup);
-  if (ausgewaehlterName && !bekannteNamen.includes(ausgewaehlterName)) {
-    optionen.push(unbekannteModellOptionMarkup(ausgewaehlterName));
-  }
-  return `<option value="">(kein Modell)</option>${optionen.join("")}`;
+  const boxen = modelle.map((modell) => modellCheckboxMarkup(modell, ausgewaehlteNamen.includes(modell.name)));
+  const unbekannte = ausgewaehlteNamen
+    .filter((name) => !bekannteNamen.includes(name))
+    .map(unbekannteModellCheckboxMarkup);
+  const alle = [...boxen, ...unbekannte].join("");
+  return alle || "<p>Kein Modell im Register.</p>";
 }
 
-function modellOptionMarkup(modell) {
+function modellCheckboxMarkup(modell, ausgewaehlt) {
   const hinweis = modell.preise_vollstaendig ? "" : " — keine Preise gepflegt";
-  return `<option value="${escapeHtml(modell.name)}">${escapeHtml(modell.name)}${hinweis}</option>`;
+  return modellCheckboxLabel(modell.name, ausgewaehlt, hinweis);
 }
 
-function unbekannteModellOptionMarkup(name) {
-  return `<option value="${escapeHtml(name)}">${escapeHtml(name)} — nicht im Register</option>`;
+function unbekannteModellCheckboxMarkup(name) {
+  return modellCheckboxLabel(name, true, " — nicht im Register");
+}
+
+function modellCheckboxLabel(name, ausgewaehlt, hinweis) {
+  const attribut = ausgewaehlt ? "checked" : "";
+  return `<label><input type="checkbox" class="modell-checkbox" value="${escapeHtml(name)}" ${attribut} /> ${escapeHtml(name)}${hinweis}</label><br/>`;
+}
+
+function liesAusgewaehlteModellNamen(app) {
+  return Array.from(app.querySelectorAll(".modell-checkbox:checked")).map((box) => box.value);
 }
 
 function bindeFormular(app, profilId, kontext) {
-  const felder = ["system_prompt", "user_prompt", "tools_json", "max_output_tokens", "reasoning_effort"];
+  const felder = [
+    "system_prompt",
+    "user_prompt",
+    "tools_json",
+    "max_output_tokens",
+    "reasoning_effort",
+    "wiederholungen",
+  ];
   felder.forEach((id) => {
     app.querySelector(`#${id}`).addEventListener("input", () => planeSpeichern(app, profilId));
   });
-  app.querySelector("#modell").addEventListener("change", () => {
+  app.querySelector("#wiederholungen").addEventListener("input", () => aktualisiereVorschau(app));
+  app.querySelector("#modelle-auswahl").addEventListener("change", () => {
     wendeGatingAn(app, kontext.modelle);
+    aktualisiereVorschau(app);
     planeSpeichern(app, profilId);
   });
   app.querySelector("#tools_json").addEventListener("input", () => pruefeToolsJson(app));
@@ -153,8 +177,9 @@ function bindeFormular(app, profilId, kontext) {
 }
 
 function wendeGatingAn(app, modelle) {
-  const ausgewaehltesModell = findeModell(modelle, app.querySelector("#modell").value);
-  setzeFeldGating(app.querySelector("#reasoning_effort"), istErlaubt(ausgewaehltesModell, "erlaubt_reasoning_effort"));
+  const ausgewaehlteModelle = liesAusgewaehlteModellNamen(app).map((name) => findeModell(modelle, name));
+  const erlaubt = ausgewaehlteModelle.every((modell) => istErlaubt(modell, "erlaubt_reasoning_effort"));
+  setzeFeldGating(app.querySelector("#reasoning_effort"), erlaubt);
 }
 
 function findeModell(modelle, name) {
@@ -210,19 +235,31 @@ async function speichern(app, profilId) {
 }
 
 function liesFormular(app) {
-  const modell = app.querySelector("#modell").value.trim();
   const maxTokens = app.querySelector("#max_output_tokens").value;
   return {
     system_prompt: app.querySelector("#system_prompt").value,
     user_prompt: app.querySelector("#user_prompt").value,
     tools_json: liesToolsJson(app),
-    modelle: modell ? [modell] : [],
+    modelle: liesAusgewaehlteModellNamen(app),
     max_output_tokens: maxTokens ? Number(maxTokens) : null,
     reasoning_effort: liesGegatetesFeld(app, "#reasoning_effort"),
     web_suche: false,
     search_context_size: null,
-    wiederholungen: 1,
+    wiederholungen: liesWiederholungen(app),
   };
+}
+
+function liesWiederholungen(app) {
+  const wert = Math.trunc(Number(app.querySelector("#wiederholungen").value));
+  return Number.isFinite(wert) && wert >= 1 ? wert : 1;
+}
+
+function aktualisiereVorschau(app) {
+  const anzahlModelle = liesAusgewaehlteModellNamen(app).length;
+  const wiederholungen = liesWiederholungen(app);
+  const anzahlCalls = anzahlModelle * wiederholungen;
+  app.querySelector("#call-vorschau").textContent =
+    `Vorschau: ${anzahlModelle} Modell(e) × ${wiederholungen} Wiederholung(en) = ${anzahlCalls} Call(s)`;
 }
 
 function liesGegatetesFeld(app, selector) {
@@ -348,7 +385,10 @@ function sortiereNach(app, profilId, spalte) {
 function renderCallsBereich(laeufe, calls) {
   if (laeufe.length === 0) return "<p>Noch keine Läufe.</p>";
   return (
-    renderFortschritt(laeufe) + renderLaufListe(laeufe) + renderCacheHinweis() + renderCallsTabelle(calls)
+    renderFortschritt(laeufe) +
+    renderLaufListe(laeufe) +
+    renderCacheHinweis() +
+    renderCallsTabelle(laeufe, calls)
   );
 }
 
@@ -398,10 +438,41 @@ function ausLaufUebernehmenKnopf(lauf) {
   return `<button type="button" class="aus-lauf-uebernehmen" data-lauf-id="${lauf.lauf_id}" data-lauf-nummer="${lauf.nummer}">Aus Lauf ${lauf.nummer} übernehmen</button>`;
 }
 
-function renderCallsTabelle(calls) {
+function renderCallsTabelle(laeufe, calls) {
   const kopfzeile = SPALTEN.map(kopfZelle).join("");
+  const aggregatZeilen = [...laeufe].reverse().map(laufAggregatZeile).join("");
   const zeilen = calls.map(callZeile).join("");
-  return `<table><thead><tr>${kopfzeile}</tr></thead><tbody>${zeilen}</tbody></table>`;
+  return `<table><thead><tr>${kopfzeile}</tr></thead><tbody>${aggregatZeilen}${zeilen}</tbody></table>`;
+}
+
+function laufAggregatZeile(lauf) {
+  const werte = aggregatWerte(lauf);
+  const zellen = SPALTEN.map((spalte) => `<td>${aggregatZelleInhalt(spalte.key, werte)}</td>`).join("");
+  return `<tr class="lauf-aggregat-zeile" data-lauf-id="${lauf.lauf_id}">${zellen}</tr>`;
+}
+
+function aggregatWerte(lauf) {
+  const anzahlModelle = lauf.einstellungen.modelle.length;
+  return {
+    lauf_nummer: lauf.nummer,
+    modell_name: `Aggregat (${lauf.aggregat.anzahl_calls} Call(s))`,
+    wiederholung_index: "",
+    einstellungen: `${anzahlModelle} Modell(e) × ${lauf.einstellungen.wiederholungen} Wiederholung(en)`,
+    status: "",
+    input_tokens: lauf.aggregat.input_tokens,
+    cached_input_tokens: lauf.aggregat.cached_input_tokens,
+    reasoning_tokens: lauf.aggregat.reasoning_tokens,
+    output_tokens: lauf.aggregat.output_tokens,
+    total_tokens: lauf.aggregat.total_tokens,
+    kosten_usd: lauf.aggregat.kosten_usd,
+    dauer_ms: lauf.aggregat.dauer_ms_mittel,
+  };
+}
+
+function aggregatZelleInhalt(key, werte) {
+  if (key === "kosten_usd") return formatKosten(werte.kosten_usd);
+  const wert = werte[key];
+  return wert === null || wert === undefined || wert === "" ? "" : escapeHtml(String(wert));
 }
 
 function kopfZelle(spalte) {

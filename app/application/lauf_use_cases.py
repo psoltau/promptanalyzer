@@ -1,8 +1,10 @@
 import json
+import logging
 import time
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Callable, ContextManager, Dict, Optional, Tuple
 from uuid import uuid4
 
 from app.application.ports import (
@@ -30,6 +32,10 @@ from app.domain.kosten import (
     schnappschuss_aus_modell,
 )
 from app.domain.models import Arbeitsstand, Call, CallStatus, Lauf, Modell
+
+logger = logging.getLogger(__name__)
+
+LaufExecutionPortsFactory = Callable[[], ContextManager[LaufExecutionPorts]]
 
 
 def start_lauf(profil_id: str, api_key: Optional[str], ports: LaufStartPorts) -> Lauf:
@@ -85,14 +91,44 @@ class _AusfuehrungsKontext:
     modell_repo: ModellRepository
 
 
-def execute_lauf(lauf: Lauf, api_key: str, ports: LaufExecutionPorts) -> None:
-    arbeitsstand = lauf.arbeitsstand
-    for modell_name in arbeitsstand.modelle:
-        for wiederholung_index in range(1, arbeitsstand.wiederholungen + 1):
-            job = _CallJob(lauf, modell_name, wiederholung_index)
-            call = _run_single_call(job, api_key, ports)
+@dataclass
+class _ModellAuftrag:
+    lauf: Lauf
+    modell_name: str
+    api_key: str
+    ports_factory: LaufExecutionPortsFactory
+
+
+def execute_lauf(lauf: Lauf, api_key: str, ports_factory: LaufExecutionPortsFactory) -> None:
+    """Modelle laufen parallel (ein Thread mit eigener Connection je Modell), Wiederholungen
+    innerhalb eines Modells strikt seriell nach Index — nur so füllt der erste Call den Cache,
+    den die folgenden treffen können. Ein Fehler in einem Modell-Thread wird geloggt und
+    isoliert; er hält weder andere Modelle auf noch verhindert er `mark_beendet`."""
+    auftraege = [
+        _ModellAuftrag(lauf, modell_name, api_key, ports_factory)
+        for modell_name in lauf.arbeitsstand.modelle
+    ]
+    with ThreadPoolExecutor(max_workers=max(len(auftraege), 1)) as pool:
+        futures = {pool.submit(_ausfuehren_fuer_modell, auftrag): auftrag for auftrag in auftraege}
+        for future, auftrag in futures.items():
+            _sammle_ergebnis(future, auftrag)
+    with ports_factory() as ports:
+        ports.lauf_repo.mark_beendet(lauf.id, datetime.now(timezone.utc))
+
+
+def _ausfuehren_fuer_modell(auftrag: _ModellAuftrag) -> None:
+    with auftrag.ports_factory() as ports:
+        for wiederholung_index in range(1, auftrag.lauf.arbeitsstand.wiederholungen + 1):
+            job = _CallJob(auftrag.lauf, auftrag.modell_name, wiederholung_index)
+            call = _run_single_call(job, auftrag.api_key, ports)
             ports.call_repo.add(call)
-    ports.lauf_repo.mark_beendet(lauf.id, datetime.now(timezone.utc))
+
+
+def _sammle_ergebnis(future: "Future[None]", auftrag: _ModellAuftrag) -> None:
+    try:
+        future.result()
+    except Exception:
+        logger.exception("Modell %s in Lauf %s fehlgeschlagen", auftrag.modell_name, auftrag.lauf.id)
 
 
 def _run_single_call(job: _CallJob, api_key: str, ports: LaufExecutionPorts) -> Call:
