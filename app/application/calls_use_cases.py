@@ -15,6 +15,7 @@ class LaufAggregat:
     output_tokens: int
     total_tokens: int
     web_search_calls: int
+    kosten_usd: Optional[float]
     dauer_ms_mittel: Optional[int]
 
 
@@ -78,9 +79,18 @@ def _aggregiere(calls: List[Call]) -> LaufAggregat:
         output_tokens=_summe(calls, lambda c: c.output_tokens),
         total_tokens=_summe(calls, lambda c: c.total_tokens),
         web_search_calls=_summe(calls, lambda c: c.web_search_calls),
+        kosten_usd=_kosten_summe(calls),
         dauer_ms_mittel=mittel,
     )
 
 
 def _summe(calls: List[Call], feld: Callable[[Call], Optional[int]]) -> int:
     return sum(feld(c) or 0 for c in calls)
+
+
+def _kosten_summe(calls: List[Call]) -> Optional[float]:
+    """Summiert nur, was vorliegt: fehlt bei einem Call `kosten_usd`, ist auch die
+    Aggregatkosten `None` (sonst behauptete die Summe eine Vollständigkeit, die sie nicht hat)."""
+    if not calls or any(c.kosten_usd is None for c in calls):
+        return None
+    return sum(c.kosten_usd for c in calls)

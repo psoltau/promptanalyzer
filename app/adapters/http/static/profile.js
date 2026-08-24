@@ -1,4 +1,12 @@
-import { getProfile, saveArbeitsstand, startLauf, getCalls, getKeyStatus, getModelle } from "./api.js";
+import {
+  getProfile,
+  saveArbeitsstand,
+  startLauf,
+  getCalls,
+  getKeyStatus,
+  getModelle,
+  kostenNeuBerechnen,
+} from "./api.js";
 import { zeigeCallDetail } from "./call_detail.js";
 
 const SPEICHER_VERZOEGERUNG_MS = 800;
@@ -31,6 +39,7 @@ let sortSpalte = null;
 let sortAufsteigend = true;
 let letzteLaeufe = [];
 let letzteCalls = [];
+let aktuellesProfilId = null;
 
 export async function renderProfile(app, profilId) {
   stoppePolling();
@@ -245,6 +254,7 @@ function stoppePolling() {
 }
 
 async function aktualisiereCalls(app, profilId) {
+  aktuellesProfilId = profilId;
   const daten = await getCalls(profilId);
   letzteLaeufe = daten.laeufe;
   letzteCalls = daten.calls.map(anreichern);
@@ -257,6 +267,18 @@ function renderUndBindeCalls(app) {
   app.querySelector("#calls").innerHTML = renderCallsBereich(letzteLaeufe, sortiert);
   bindeCallZeilen(app);
   bindeSortierHeader(app);
+  bindeKostenNeuberechnenKnoepfe(app);
+}
+
+function bindeKostenNeuberechnenKnoepfe(app) {
+  app.querySelectorAll(".kosten-neuberechnen").forEach((knopf) => {
+    knopf.addEventListener("click", () => neuBerechnen(app, knopf.dataset.laufId));
+  });
+}
+
+async function neuBerechnen(app, laufId) {
+  await kostenNeuBerechnen(laufId);
+  await aktualisiereCalls(app, aktuellesProfilId);
 }
 
 function anreichern(call) {
@@ -301,7 +323,36 @@ function sortiereNach(app, spalte) {
 
 function renderCallsBereich(laeufe, calls) {
   if (calls.length === 0) return "<p>Noch keine Läufe.</p>";
-  return renderFortschritt(laeufe) + renderCacheHinweis() + renderCallsTabelle(calls);
+  return (
+    renderFortschritt(laeufe) + renderLaufListe(laeufe) + renderCacheHinweis() + renderCallsTabelle(calls)
+  );
+}
+
+function renderLaufListe(laeufe) {
+  const zeilen = [...laeufe].reverse().map(laufZeile).join("");
+  return `
+    <table class="lauf-liste">
+      <thead><tr><th>Lauf</th><th>Gestartet</th><th>Beendet</th><th>Kosten (USD)</th><th></th></tr></thead>
+      <tbody>${zeilen}</tbody>
+    </table>
+  `;
+}
+
+function laufZeile(lauf) {
+  return `
+    <tr>
+      <td>${lauf.nummer}</td>
+      <td>${escapeHtml(lauf.gestartet_am)}</td>
+      <td>${escapeHtml(lauf.beendet_am ?? "läuft noch")}</td>
+      <td>${formatKosten(lauf.aggregat.kosten_usd)}</td>
+      <td>${kostenNeuberechnenKnopf(lauf)}</td>
+    </tr>
+  `;
+}
+
+function kostenNeuberechnenKnopf(lauf) {
+  if (lauf.beendet_am === null) return "";
+  return `<button type="button" class="kosten-neuberechnen" data-lauf-id="${lauf.lauf_id}">Kosten neu berechnen</button>`;
 }
 
 function renderCacheHinweis() {

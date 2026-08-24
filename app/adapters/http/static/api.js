@@ -50,6 +50,10 @@ export function getCall(callId) {
   return anfrage(`/call/${callId}`);
 }
 
+export function kostenNeuBerechnen(laufId) {
+  return anfrage(`/lauf/${laufId}/kosten-neuberechnung`, { method: "POST" });
+}
+
 export function getModelle() {
   return anfrage("/modelle");
 }

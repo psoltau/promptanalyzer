@@ -136,7 +136,7 @@ def _aggregat_to_body(eintrag: LaufUebersichtEintrag) -> LaufAggregatBody:
         output_tokens=aggregat.output_tokens,
         total_tokens=aggregat.total_tokens,
         web_search_calls=aggregat.web_search_calls,
-        kosten_usd=None,
+        kosten_usd=aggregat.kosten_usd,
         dauer_ms_mittel=aggregat.dauer_ms_mittel,
     )
 
@@ -156,7 +156,7 @@ def _call_to_row(call: Call, lauf: Lauf) -> CallRow:
         reasoning_effort=arbeitsstand.reasoning_effort,
         web_suche=arbeitsstand.web_suche,
         search_context_size=arbeitsstand.search_context_size,
-        kosten_usd=None,
+        kosten_usd=call.kosten_usd,
         dauer_ms=call.dauer_ms,
         erstellt_am=to_iso_z(call.erstellt_am),
         **_call_tokens(call),
@@ -217,7 +217,10 @@ def call_detail_view_to_schema(view: CallDetailView) -> CallDetail:
         antwort_text=call.antwort_text,
         schnappschuss=arbeitsstand_to_body(view.lauf.arbeitsstand),
         preise=PreiseBody(
-            preis_input=None, preis_cached_input=None, preis_output=None, preis_suche=None
+            preis_input=call.preis_input,
+            preis_cached_input=call.preis_cached_input,
+            preis_output=call.preis_output,
+            preis_suche=call.preis_suche,
         ),
         request_json=json.loads(call.request_json),
         response_json=json.loads(call.response_json) if call.response_json else None,

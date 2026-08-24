@@ -140,3 +140,11 @@ select:disabled {
   background: #eee;
   color: #888;
 }
+
+.lauf-liste {
+  margin-top: 0.75rem;
+}
+
+.kosten-neuberechnen {
+  font-size: 0.85rem;
+}

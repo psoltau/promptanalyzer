@@ -129,3 +129,8 @@ class Call:
     request_json: str
     response_json: Optional[str]
     erstellt_am: datetime
+    preis_input: Optional[float]
+    preis_cached_input: Optional[float]
+    preis_output: Optional[float]
+    preis_suche: Optional[float]
+    kosten_usd: Optional[float]

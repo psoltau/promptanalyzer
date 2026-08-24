@@ -5,6 +5,7 @@ from typing import Callable
 
 from app.adapters.sqlite.call_repository import SqliteCallRepository
 from app.adapters.sqlite.lauf_repository import SqliteLaufRepository
+from app.adapters.sqlite.modell_repository import SqliteModellRepository
 from app.application.lauf_use_cases import execute_lauf
 from app.application.ports import LaufExecutionPorts, ModelGateway
 from app.domain.models import Lauf
@@ -30,6 +31,7 @@ class ThreadedLaufRunner:
                 gateway=self._gateway,
                 call_repo=SqliteCallRepository(connection),
                 lauf_repo=SqliteLaufRepository(connection),
+                modell_repo=SqliteModellRepository(connection),
             )
             execute_lauf(lauf, api_key, ports)
         except Exception:

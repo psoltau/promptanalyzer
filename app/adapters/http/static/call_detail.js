@@ -1,5 +1,12 @@
 import { getCall } from "./api.js";
 
+const PREIS_FELDER = [
+  { key: "preis_input", label: "Preis Input (USD/1M Tokens)" },
+  { key: "preis_cached_input", label: "Preis Cached Input (USD/1M Tokens)" },
+  { key: "preis_output", label: "Preis Output (USD/1M Tokens)" },
+  { key: "preis_suche", label: "Preis Web-Suche (USD/Suchanfrage)" },
+];
+
 const SCHNAPPSCHUSS_FELDER = [
   { key: "system_prompt", label: "System Prompt", mehrzeilig: true },
   { key: "user_prompt", label: "User Prompt", mehrzeilig: true },
@@ -29,11 +36,26 @@ function renderCallDetail(call) {
   const abschnitte = [
     call.status === "error" ? renderFehler(call) : "",
     renderAntwort(call),
+    renderPreise(call.preise),
     renderSchnappschuss(call.schnappschuss),
     renderRohesJson("Request-JSON", call.request_json),
     renderRohesJson("Response-JSON", call.response_json),
   ];
   return `<div class="call-detail-inhalt">${abschnitte.join("")}</div>`;
+}
+
+function renderPreise(preise) {
+  const zeilen = PREIS_FELDER.map((feld) => preisZeile(feld, preise)).join("");
+  return abschnitt(
+    "Verwendete Preissätze (Schnappschuss zum Ausführungszeitpunkt)",
+    `<dl class="call-detail-schnappschuss">${zeilen}</dl>`
+  );
+}
+
+function preisZeile(feld, preise) {
+  const wert = preise[feld.key];
+  const anzeige = wert === null || wert === undefined ? "– (kein Preis gepflegt)" : String(wert);
+  return `<dt>${escapeHtml(feld.label)}</dt><dd>${escapeHtml(anzeige)}</dd>`;
 }
 
 function renderFehler(call) {

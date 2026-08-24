@@ -3,18 +3,27 @@ from typing import Any, Dict, List, Optional
 
 from app.adapters.sqlite.time_codec import text_to_dt
 from app.domain.key_sanitizer import bereinige
+from app.domain.kosten import PreisSchnappschuss
 from app.domain.models import Call, CallStatus
 
 _INSERT_SQL = (
     "INSERT INTO call ("
     "id, lauf_id, modell_name, wiederholung_index, status, incomplete_grund, fehlertext, "
     "dauer_ms, input_tokens, cached_input_tokens, reasoning_tokens, output_tokens, "
-    "total_tokens, web_search_calls, antwort_text, request_json, response_json, erstellt_am"
+    "total_tokens, web_search_calls, antwort_text, request_json, response_json, erstellt_am, "
+    "preis_input, preis_cached_input, preis_output, preis_suche, kosten_usd"
     ") VALUES ("
     ":id, :lauf_id, :modell_name, :wiederholung_index, :status, :incomplete_grund, "
     ":fehlertext, :dauer_ms, :input_tokens, :cached_input_tokens, :reasoning_tokens, "
     ":output_tokens, :total_tokens, :web_search_calls, :antwort_text, :request_json, "
-    ":response_json, :erstellt_am)"
+    ":response_json, :erstellt_am, :preis_input, :preis_cached_input, :preis_output, "
+    ":preis_suche, :kosten_usd)"
+)
+
+_UPDATE_KOSTEN_SQL = (
+    "UPDATE call SET preis_input = :preis_input, preis_cached_input = :preis_cached_input, "
+    "preis_output = :preis_output, preis_suche = :preis_suche, kosten_usd = :kosten_usd "
+    "WHERE id = :id"
 )
 
 
@@ -45,6 +54,20 @@ class SqliteCallRepository:
         ).fetchall()
         return [_row_to_call(row) for row in rows]
 
+    def list_for_lauf(self, lauf_id: str) -> List[Call]:
+        rows = self._connection.execute(
+            "SELECT * FROM call WHERE lauf_id = ? ORDER BY erstellt_am", (lauf_id,)
+        ).fetchall()
+        return [_row_to_call(row) for row in rows]
+
+    def update_kosten(
+        self, call_id: str, preise: PreisSchnappschuss, kosten_usd: Optional[float]
+    ) -> None:
+        self._connection.execute(
+            _UPDATE_KOSTEN_SQL, {**_preise_to_params(preise), "kosten_usd": kosten_usd, "id": call_id}
+        )
+        self._connection.commit()
+
 
 def _call_to_params(call: Call) -> Dict[str, Any]:
     return {
@@ -61,6 +84,26 @@ def _call_to_params(call: Call) -> Dict[str, Any]:
         "response_json": bereinige(call.response_json),
         "erstellt_am": call.erstellt_am.isoformat(),
         **_token_params(call),
+        **_preise_to_params(_call_preise(call)),
+        "kosten_usd": call.kosten_usd,
+    }
+
+
+def _call_preise(call: Call) -> PreisSchnappschuss:
+    return PreisSchnappschuss(
+        preis_input=call.preis_input,
+        preis_cached_input=call.preis_cached_input,
+        preis_output=call.preis_output,
+        preis_suche=call.preis_suche,
+    )
+
+
+def _preise_to_params(preise: PreisSchnappschuss) -> Dict[str, Optional[float]]:
+    return {
+        "preis_input": preise.preis_input,
+        "preis_cached_input": preise.preis_cached_input,
+        "preis_output": preise.preis_output,
+        "preis_suche": preise.preis_suche,
     }
 
 
@@ -90,7 +133,18 @@ def _row_to_call(row: sqlite3.Row) -> Call:
         response_json=row["response_json"],
         erstellt_am=text_to_dt(row["erstellt_am"]),
         **_token_row(row),
+        **_kosten_row(row),
     )
+
+
+def _kosten_row(row: sqlite3.Row) -> Dict[str, Optional[float]]:
+    return {
+        "preis_input": row["preis_input"],
+        "preis_cached_input": row["preis_cached_input"],
+        "preis_output": row["preis_output"],
+        "preis_suche": row["preis_suche"],
+        "kosten_usd": row["kosten_usd"],
+    }
 
 
 def _token_row(row: sqlite3.Row) -> Dict[str, Any]:

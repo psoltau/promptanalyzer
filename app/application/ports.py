@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional, Protocol
 
+from app.domain.kosten import PreisSchnappschuss
 from app.domain.models import Arbeitsstand, Call, Lauf, Modell, Profil, ProfilUebersicht
 
 
@@ -68,6 +69,11 @@ class CallRepository(Protocol):
     def add(self, call: Call) -> None: ...
     def get(self, call_id: str) -> Optional[Call]: ...
     def list_for_profil(self, profil_id: str) -> List[Call]: ...
+    def list_for_lauf(self, lauf_id: str) -> List[Call]: ...
+
+    def update_kosten(
+        self, call_id: str, preise: PreisSchnappschuss, kosten_usd: Optional[float]
+    ) -> None: ...
 
 
 class ModellRepository(Protocol):
@@ -87,6 +93,7 @@ class LaufExecutionPorts:
     gateway: ModelGateway
     call_repo: CallRepository
     lauf_repo: LaufRepository
+    modell_repo: ModellRepository
 
 
 @dataclass
@@ -94,3 +101,10 @@ class LaufStartPorts:
     profil_repo: ProfilRepository
     lauf_repo: LaufRepository
     runner: LaufRunner
+
+
+@dataclass
+class LaufKostenPorts:
+    lauf_repo: LaufRepository
+    call_repo: CallRepository
+    modell_repo: ModellRepository

@@ -33,6 +33,8 @@ from app.domain.errors import (
     CallNichtGefunden,
     KeinModellGewaehlt,
     KeyFehlt,
+    LaufLaeuftNoch,
+    LaufNichtGefunden,
     ModellNameVergeben,
     ModellNichtGefunden,
     NameLeer,
@@ -46,12 +48,14 @@ logger = logging.getLogger(__name__)
 _ERROR_MAP = {
     ProfilNichtGefunden: (404, "PROFIL_NICHT_GEFUNDEN"),
     CallNichtGefunden: (404, "CALL_NICHT_GEFUNDEN"),
+    LaufNichtGefunden: (404, "LAUF_NICHT_GEFUNDEN"),
     ModellNichtGefunden: (404, "MODELL_NICHT_GEFUNDEN"),
     NameLeer: (422, "NAME_LEER"),
     KeinModellGewaehlt: (422, "KEIN_MODELL_GEWAEHLT"),
     WiederholungenUngueltig: (422, "WIEDERHOLUNGEN_UNGUELTIG"),
     ToolsJsonUngueltig: (422, "TOOLS_JSON_UNGUELTIG"),
     ModellNameVergeben: (409, "MODELL_NAME_VERGEBEN"),
+    LaufLaeuftNoch: (409, "LAUF_LAEUFT_NOCH"),
     KeyFehlt: (400, "KEY_FEHLT"),
 }
 
