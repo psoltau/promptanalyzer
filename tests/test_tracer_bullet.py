@@ -102,6 +102,35 @@ def test_max_output_tokens_und_reasoning_effort_teil_des_arbeitsstands(client):
     assert geladen["arbeitsstand"]["reasoning_effort"] == "high"
 
 
+def test_web_suche_und_search_context_size_teil_des_arbeitsstands(client):
+    profil = _erstelle_profil(client)
+
+    _setze_arbeitsstand(client, profil["id"], web_suche=True, search_context_size="high")
+
+    geladen = client.get(f"/api/v1/profile/{profil['id']}").json()
+    assert geladen["arbeitsstand"]["web_suche"] is True
+    assert geladen["arbeitsstand"]["search_context_size"] == "high"
+
+
+def test_web_suche_wird_mit_dem_lauf_eingefroren(client, gateway):
+    profil = _erstelle_profil(client)
+    _setze_arbeitsstand(client, profil["id"], web_suche=True, search_context_size="high")
+
+    start_antwort = _starte_lauf(client, profil["id"], headers={"X-OpenAI-Key": "sk-test"}).json()
+    _warte_auf_lauf_ende(client, profil["id"], start_antwort["lauf_id"])
+
+    _setze_arbeitsstand(client, profil["id"], web_suche=False, search_context_size=None)
+
+    calls = client.get(f"/api/v1/profile/{profil['id']}/calls").json()
+    call_id = calls["calls"][0]["id"]
+    detail = client.get(f"/api/v1/call/{call_id}").json()
+    assert detail["schnappschuss"]["web_suche"] is True
+    assert detail["schnappschuss"]["search_context_size"] == "high"
+
+    geladenes_profil = client.get(f"/api/v1/profile/{profil['id']}").json()
+    assert geladenes_profil["arbeitsstand"]["web_suche"] is False
+
+
 def test_lauf_kehrt_sofort_zurueck_und_call_laeuft_im_hintergrund_weiter(client, gateway):
     profil = _erstelle_profil(client)
     _setze_arbeitsstand(client, profil["id"])
