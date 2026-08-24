@@ -5,6 +5,10 @@ const SPEICHER_VERZOEGERUNG_MS = 800;
 const POLL_INTERVALL_MS = 1000;
 const API_KEY_STORAGE = "prompting_analyzer_api_key";
 const KOSTEN_DEZIMALSTELLEN = 4;
+const CACHE_HINWEIS_TEXT =
+  "Hinweis zur Spalte „Cached“: Prompt-Caching setzt bei der Responses API erst ab einem " +
+  "gemeinsamen Prefix von etwa 1000 Tokens ein. Bei kurzen Testprompts bleibt der Wert deshalb " +
+  "dauerhaft 0 — das liegt am Prompt, nicht am Modell oder am Werkzeug.";
 
 const SPALTEN = [
   { key: "lauf_nummer", label: "Lauf" },
@@ -241,7 +245,11 @@ function sortiereNach(app, spalte) {
 
 function renderCallsBereich(laeufe, calls) {
   if (calls.length === 0) return "<p>Noch keine Läufe.</p>";
-  return renderFortschritt(laeufe) + renderCallsTabelle(calls);
+  return renderFortschritt(laeufe) + renderCacheHinweis() + renderCallsTabelle(calls);
+}
+
+function renderCacheHinweis() {
+  return `<p class="cache-hinweis">${escapeHtml(CACHE_HINWEIS_TEXT)}</p>`;
 }
 
 function renderFortschritt(laeufe) {

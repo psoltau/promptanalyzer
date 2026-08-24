@@ -74,3 +74,64 @@ textarea {
   font-size: 0.85rem;
   margin: 0.2rem 0 0.6rem;
 }
+
+.cache-hinweis {
+  background: #fff8e6;
+  border: 1px solid #e8d68a;
+  border-radius: 4px;
+  padding: 0.4rem 0.75rem;
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+  color: #5c4a00;
+}
+
+.call-detail-inhalt {
+  padding: 0.6rem 0.2rem;
+}
+
+.call-detail-abschnitt {
+  margin-bottom: 1rem;
+}
+
+.call-detail-abschnitt h3 {
+  margin: 0 0 0.3rem;
+  font-size: 0.95rem;
+}
+
+.call-detail-abschnitt pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #f6f6f6;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.5rem;
+  max-height: 20rem;
+  overflow: auto;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.call-detail-fehler {
+  color: #cf222e;
+}
+
+.call-detail-schnappschuss {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 0.75rem;
+  row-gap: 0.4rem;
+  margin: 0;
+}
+
+.call-detail-schnappschuss dt {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.call-detail-schnappschuss dd {
+  margin: 0;
+}
+
+.call-detail-json {
+  font-family: ui-monospace, Menlo, monospace;
+}
