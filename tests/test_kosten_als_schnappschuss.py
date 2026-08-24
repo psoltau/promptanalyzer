@@ -109,6 +109,37 @@ def test_fehlender_preis_fuehrt_zu_leerer_spalte_statt_null(client, gateway):
     assert zeile["kosten_usd"] is None
 
 
+def test_suchanfragen_werden_in_der_vergleichstabelle_gezaehlt(client, gateway):
+    antwort = VorbereiteteAntwort(input_tokens=10, output_tokens=5, web_search_calls=3)
+
+    _, _, zeile = _fuehre_lauf_aus(client, gateway, antwort, web_suche=True)
+
+    assert zeile["web_search_calls"] == 3
+    # Web-Suche wird serverseitig ausgeführt: pro Call bleibt es bei genau einem Request.
+    assert len(gateway.aufrufe) == 1
+
+
+def test_suchkosten_sind_teil_der_kostenzahl(client, gateway):
+    client.put("/api/v1/modelle/gpt-5", json=_VOLLE_PREISE)
+    antwort = VorbereiteteAntwort(input_tokens=0, output_tokens=0, web_search_calls=3)
+
+    _, _, zeile = _fuehre_lauf_aus(client, gateway, antwort, web_suche=True)
+
+    assert zeile["web_search_calls"] == 3
+    assert zeile["kosten_usd"] == 3 * _VOLLE_PREISE["preis_suche"]
+
+
+def test_fehlender_suchpreis_laesst_kostenspalte_leer_bei_suchlauf(client, gateway):
+    ohne_suchpreis = {**_VOLLE_PREISE, "preis_suche": None}
+    client.put("/api/v1/modelle/gpt-5", json=ohne_suchpreis)
+    antwort = VorbereiteteAntwort(input_tokens=10, output_tokens=5, web_search_calls=2)
+
+    _, _, zeile = _fuehre_lauf_aus(client, gateway, antwort, web_suche=True)
+
+    assert zeile["web_search_calls"] == 2
+    assert zeile["kosten_usd"] is None
+
+
 def test_vier_preissaetze_je_call_gespeichert_und_im_detail_sichtbar(client, gateway):
     client.put("/api/v1/modelle/gpt-5", json=_VOLLE_PREISE)
     antwort = VorbereiteteAntwort(input_tokens=10, output_tokens=5)

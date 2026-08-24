@@ -30,6 +30,7 @@ const SPALTEN = [
   { key: "reasoning_tokens", label: "Reasoning" },
   { key: "output_tokens", label: "Output" },
   { key: "total_tokens", label: "Total" },
+  { key: "web_search_calls", label: "Suchanfragen" },
   { key: "kosten_usd", label: "Kosten (USD)" },
   { key: "dauer_ms", label: "Dauer (ms)" },
 ];
@@ -85,6 +86,15 @@ function vorlage(profil) {
           <option value="high">high</option>
         </select>
       </label><br/>
+      <label>Web-Suche <input id="web_suche" type="checkbox" /></label><br/>
+      <label>search_context_size
+        <select id="search_context_size">
+          <option value="">(nicht gesetzt)</option>
+          <option value="low">low</option>
+          <option value="medium">medium</option>
+          <option value="high">high</option>
+        </select>
+      </label><br/>
       <label>API-Key (optional, sonst OPENAI_API_KEY aus der Umgebung)
         <input id="api_key" type="password" />
       </label><br/>
@@ -103,6 +113,8 @@ function fuelleFormular(app, arbeitsstand, modelle) {
   fuelleModellOptionen(app, modelle, arbeitsstand.modelle[0] || "");
   app.querySelector("#max_output_tokens").value = arbeitsstand.max_output_tokens ?? "";
   app.querySelector("#reasoning_effort").value = arbeitsstand.reasoning_effort || "";
+  app.querySelector("#web_suche").checked = arbeitsstand.web_suche;
+  app.querySelector("#search_context_size").value = arbeitsstand.search_context_size || "";
   app.querySelector("#api_key").value = window.localStorage.getItem(API_KEY_STORAGE) || "";
   pruefeToolsJson(app);
   wendeGatingAn(app, modelle);
@@ -133,7 +145,15 @@ function unbekannteModellOptionMarkup(name) {
 }
 
 function bindeFormular(app, profilId, kontext) {
-  const felder = ["system_prompt", "user_prompt", "tools_json", "max_output_tokens", "reasoning_effort"];
+  const felder = [
+    "system_prompt",
+    "user_prompt",
+    "tools_json",
+    "max_output_tokens",
+    "reasoning_effort",
+    "web_suche",
+    "search_context_size",
+  ];
   felder.forEach((id) => {
     app.querySelector(`#${id}`).addEventListener("input", () => planeSpeichern(app, profilId));
   });
@@ -155,6 +175,8 @@ function bindeFormular(app, profilId, kontext) {
 function wendeGatingAn(app, modelle) {
   const ausgewaehltesModell = findeModell(modelle, app.querySelector("#modell").value);
   setzeFeldGating(app.querySelector("#reasoning_effort"), istErlaubt(ausgewaehltesModell, "erlaubt_reasoning_effort"));
+  setzeFeldGating(app.querySelector("#web_suche"), istErlaubt(ausgewaehltesModell, "erlaubt_web_suche"));
+  setzeFeldGating(app.querySelector("#search_context_size"), istErlaubt(ausgewaehltesModell, "erlaubt_web_suche"));
 }
 
 function findeModell(modelle, name) {
@@ -167,7 +189,12 @@ function istErlaubt(modell, faehigkeitsschalter) {
 
 function setzeFeldGating(feld, erlaubt) {
   feld.disabled = !erlaubt;
-  if (!erlaubt) feld.value = "";
+  if (erlaubt) return;
+  if (feld.type === "checkbox") {
+    feld.checked = false;
+  } else {
+    feld.value = "";
+  }
 }
 
 function pruefeToolsJson(app) {
@@ -219,8 +246,8 @@ function liesFormular(app) {
     modelle: modell ? [modell] : [],
     max_output_tokens: maxTokens ? Number(maxTokens) : null,
     reasoning_effort: liesGegatetesFeld(app, "#reasoning_effort"),
-    web_suche: false,
-    search_context_size: null,
+    web_suche: liesGegatetesCheckbox(app, "#web_suche"),
+    search_context_size: liesGegatetesFeld(app, "#search_context_size"),
     wiederholungen: 1,
   };
 }
@@ -228,6 +255,11 @@ function liesFormular(app) {
 function liesGegatetesFeld(app, selector) {
   const feld = app.querySelector(selector);
   return feld.disabled ? null : feld.value || null;
+}
+
+function liesGegatetesCheckbox(app, selector) {
+  const feld = app.querySelector(selector);
+  return feld.disabled ? false : feld.checked;
 }
 
 function liesToolsJson(app) {
@@ -422,6 +454,7 @@ function callZeile(call) {
       <td>${call.reasoning_tokens ?? ""}</td>
       <td>${call.output_tokens ?? ""}</td>
       <td>${call.total_tokens ?? ""}</td>
+      <td>${call.web_search_calls ?? ""}</td>
       <td>${formatKosten(call.kosten_usd)}</td>
       <td>${call.dauer_ms ?? ""}</td>
     </tr>
