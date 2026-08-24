@@ -12,6 +12,11 @@ class CallNichtGefunden(DomainError):
         super().__init__("Call nicht gefunden")
 
 
+class LaufNichtGefunden(DomainError):
+    def __init__(self) -> None:
+        super().__init__("Lauf nicht gefunden")
+
+
 class NameLeer(DomainError):
     def __init__(self) -> None:
         super().__init__("Profilname ist leer")

@@ -4,14 +4,18 @@ from fastapi import APIRouter, Depends, Response
 
 from app.adapters.http.deps import (
     LaufStartDeps,
+    ProfilDuplicationDeps,
+    get_arbeitsstand_uebernahme_ports,
     get_call_repo,
     get_env_api_key,
     get_lauf_repo,
     get_lauf_start_deps,
     get_modell_repo,
+    get_profil_duplication_deps,
     get_profil_repo,
 )
 from app.adapters.http.mappers import (
+    arbeitsstand_to_body,
     body_to_arbeitsstand,
     call_detail_view_to_schema,
     calls_view_to_response,
@@ -36,8 +40,12 @@ from app.adapters.http.schemas import (
     ProfilCreateBody,
     ProfilDetail,
     ProfilListItem,
+    ProfilRenameBody,
 )
-from app.application.arbeitsstand_use_cases import save_arbeitsstand
+from app.application.arbeitsstand_use_cases import (
+    save_arbeitsstand,
+    uebernehme_arbeitsstand_aus_lauf,
+)
 from app.application.calls_use_cases import get_call_view, list_calls_view
 from app.application.lauf_use_cases import start_lauf
 from app.application.modell_use_cases import (
@@ -46,8 +54,21 @@ from app.application.modell_use_cases import (
     list_modelle,
     update_modell,
 )
-from app.application.ports import CallRepository, LaufRepository, ModellRepository, ProfilRepository
-from app.application.profile_use_cases import create_profile, get_profile, list_profiles
+from app.application.ports import (
+    ArbeitsstandUebernahmePorts,
+    CallRepository,
+    LaufRepository,
+    ModellRepository,
+    ProfilRepository,
+)
+from app.application.profile_use_cases import (
+    create_profile,
+    delete_profile,
+    duplicate_profile,
+    get_profile,
+    list_profiles,
+    rename_profile,
+)
 
 router = APIRouter(prefix="/api/v1")
 
@@ -78,6 +99,31 @@ def get_profile_route(
     return profil_to_detail(get_profile(profil_id, repo))
 
 
+@router.patch("/profile/{profil_id}", response_model=ProfilDetail)
+def rename_profile_route(
+    profil_id: str, body: ProfilRenameBody, repo: ProfilRepository = Depends(get_profil_repo)
+) -> ProfilDetail:
+    return profil_to_detail(rename_profile(profil_id, body.name, repo))
+
+
+@router.delete("/profile/{profil_id}", status_code=204)
+def delete_profile_route(
+    profil_id: str, repo: ProfilRepository = Depends(get_profil_repo)
+) -> None:
+    delete_profile(profil_id, repo)
+
+
+@router.post("/profile/{profil_id}/duplikat", response_model=ProfilDetail, status_code=201)
+def duplicate_profile_route(
+    profil_id: str,
+    response: Response,
+    deps: ProfilDuplicationDeps = Depends(get_profil_duplication_deps),
+) -> ProfilDetail:
+    profil = duplicate_profile(profil_id, deps.name, deps.ports)
+    response.headers["Location"] = f"/api/v1/profile/{profil.id}"
+    return profil_to_detail(profil)
+
+
 @router.put("/profile/{profil_id}/arbeitsstand", response_model=ArbeitsstandSaveResponse)
 def save_arbeitsstand_route(
     profil_id: str, body: ArbeitsstandBody, repo: ProfilRepository = Depends(get_profil_repo)
@@ -85,6 +131,16 @@ def save_arbeitsstand_route(
     arbeitsstand = body_to_arbeitsstand(body)
     geaendert_am = save_arbeitsstand(profil_id, arbeitsstand, repo)
     return ArbeitsstandSaveResponse(arbeitsstand_geaendert_am=to_iso_z(geaendert_am))
+
+
+@router.post("/profile/{profil_id}/arbeitsstand/aus-lauf/{lauf_id}", response_model=ArbeitsstandBody)
+def uebernehme_aus_lauf_route(
+    profil_id: str,
+    lauf_id: str,
+    ports: ArbeitsstandUebernahmePorts = Depends(get_arbeitsstand_uebernahme_ports),
+) -> ArbeitsstandBody:
+    arbeitsstand = uebernehme_arbeitsstand_aus_lauf(profil_id, lauf_id, ports)
+    return arbeitsstand_to_body(arbeitsstand)
 
 
 @router.post("/profile/{profil_id}/laeufe", response_model=LaufStartResponse, status_code=201)

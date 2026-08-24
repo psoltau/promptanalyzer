@@ -4,13 +4,16 @@ from typing import Optional
 
 from fastapi import Depends, Header
 
+from app.adapters.http.schemas import ProfilDuplicateBody
 from app.application.ports import (
+    ArbeitsstandUebernahmePorts,
     CallRepository,
     LaufRepository,
     LaufRunner,
     LaufStartPorts,
     ModelGateway,
     ModellRepository,
+    ProfilDuplicationPorts,
     ProfilRepository,
 )
 
@@ -69,3 +72,26 @@ def get_lauf_start_deps(
     api_key: Optional[str] = Depends(resolve_api_key),
 ) -> LaufStartDeps:
     return LaufStartDeps(LaufStartPorts(profil_repo, lauf_repo, runner), api_key)
+
+
+@dataclass
+class ProfilDuplicationDeps:
+    ports: ProfilDuplicationPorts
+    name: Optional[str]
+
+
+def get_profil_duplication_deps(
+    body: Optional[ProfilDuplicateBody] = None,
+    profil_repo: ProfilRepository = Depends(get_profil_repo),
+    lauf_repo: LaufRepository = Depends(get_lauf_repo),
+    call_repo: CallRepository = Depends(get_call_repo),
+) -> ProfilDuplicationDeps:
+    ports = ProfilDuplicationPorts(profil_repo, lauf_repo, call_repo)
+    return ProfilDuplicationDeps(ports, body.name if body else None)
+
+
+def get_arbeitsstand_uebernahme_ports(
+    profil_repo: ProfilRepository = Depends(get_profil_repo),
+    lauf_repo: LaufRepository = Depends(get_lauf_repo),
+) -> ArbeitsstandUebernahmePorts:
+    return ArbeitsstandUebernahmePorts(profil_repo, lauf_repo)

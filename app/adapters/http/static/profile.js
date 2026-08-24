@@ -1,4 +1,12 @@
-import { getProfile, saveArbeitsstand, startLauf, getCalls, getKeyStatus, getModelle } from "./api.js";
+import {
+  getProfile,
+  saveArbeitsstand,
+  startLauf,
+  getCalls,
+  getKeyStatus,
+  getModelle,
+  uebernehmeAusLauf,
+} from "./api.js";
 import { zeigeCallDetail } from "./call_detail.js";
 
 const SPEICHER_VERZOEGERUNG_MS = 800;
@@ -31,6 +39,7 @@ let sortSpalte = null;
 let sortAufsteigend = true;
 let letzteLaeufe = [];
 let letzteCalls = [];
+let aktuelleModelle = [];
 
 export async function renderProfile(app, profilId) {
   stoppePolling();
@@ -40,6 +49,7 @@ export async function renderProfile(app, profilId) {
     getKeyStatus(),
     getModelle(),
   ]);
+  aktuelleModelle = modelle;
   app.innerHTML = vorlage(profil);
   fuelleFormular(app, profil.arbeitsstand, modelle);
   bindeFormular(app, profilId, { keyStatus, modelle });
@@ -248,15 +258,36 @@ async function aktualisiereCalls(app, profilId) {
   const daten = await getCalls(profilId);
   letzteLaeufe = daten.laeufe;
   letzteCalls = daten.calls.map(anreichern);
-  renderUndBindeCalls(app);
+  renderUndBindeCalls(app, profilId);
   return daten.laeufe.some((lauf) => lauf.beendet_am === null);
 }
 
-function renderUndBindeCalls(app) {
+function renderUndBindeCalls(app, profilId) {
   const sortiert = sortiereCalls(letzteCalls, sortSpalte, sortAufsteigend);
   app.querySelector("#calls").innerHTML = renderCallsBereich(letzteLaeufe, sortiert);
   bindeCallZeilen(app);
-  bindeSortierHeader(app);
+  bindeSortierHeader(app, profilId);
+  bindeLaufUebernahme(app, profilId);
+}
+
+function bindeLaufUebernahme(app, profilId) {
+  app.querySelectorAll(".aus-lauf-uebernehmen").forEach((button) => {
+    button.addEventListener("click", () => {
+      handhabeUebernahme(app, profilId, button.dataset.laufId, button.dataset.laufNummer);
+    });
+  });
+}
+
+async function handhabeUebernahme(app, profilId, laufId, laufNummer) {
+  const warnung =
+    `Der aktuelle Arbeitsstand wird durch den Stand aus Lauf ${laufNummer} überschrieben. ` +
+    "Fortfahren?";
+  if (!window.confirm(warnung)) return;
+  await uebernehmeAusLauf(profilId, laufId);
+  const profil = await getProfile(profilId);
+  fuelleFormular(app, profil.arbeitsstand, aktuelleModelle);
+  app.querySelector("#gespeichert-status").textContent =
+    `Arbeitsstand: gespeichert um ${profil.arbeitsstand_geaendert_am}`;
 }
 
 function anreichern(call) {
@@ -283,25 +314,27 @@ function vergleiche(a, b) {
   return String(a ?? "").localeCompare(String(b ?? ""));
 }
 
-function bindeSortierHeader(app) {
+function bindeSortierHeader(app, profilId) {
   app.querySelectorAll("th[data-sort-key]").forEach((th) => {
-    th.addEventListener("click", () => sortiereNach(app, th.dataset.sortKey));
+    th.addEventListener("click", () => sortiereNach(app, profilId, th.dataset.sortKey));
   });
 }
 
-function sortiereNach(app, spalte) {
+function sortiereNach(app, profilId, spalte) {
   if (sortSpalte === spalte) {
     sortAufsteigend = !sortAufsteigend;
   } else {
     sortSpalte = spalte;
     sortAufsteigend = true;
   }
-  renderUndBindeCalls(app);
+  renderUndBindeCalls(app, profilId);
 }
 
 function renderCallsBereich(laeufe, calls) {
-  if (calls.length === 0) return "<p>Noch keine Läufe.</p>";
-  return renderFortschritt(laeufe) + renderCacheHinweis() + renderCallsTabelle(calls);
+  if (laeufe.length === 0) return "<p>Noch keine Läufe.</p>";
+  return (
+    renderLaufListe(laeufe) + renderFortschritt(laeufe) + renderCacheHinweis() + renderCallsTabelle(calls)
+  );
 }
 
 function renderCacheHinweis() {
@@ -317,6 +350,25 @@ function renderFortschritt(laeufe) {
 
 function fortschrittsZeile(lauf) {
   return `<p>Lauf ${lauf.nummer}: ${lauf.fertige_calls} von ${lauf.erwartete_calls} Calls fertig</p>`;
+}
+
+function renderLaufListe(laeufe) {
+  const zeilen = [...laeufe].reverse().map(laufUebernahmeZeile).join("");
+  return `<div id="lauf-liste"><h3>Läufe</h3><ul>${zeilen}</ul></div>`;
+}
+
+function laufUebernahmeZeile(lauf) {
+  return `
+    <li>
+      Lauf ${lauf.nummer} — gestartet ${lauf.gestartet_am}
+      <button
+        type="button"
+        class="aus-lauf-uebernehmen"
+        data-lauf-id="${lauf.lauf_id}"
+        data-lauf-nummer="${lauf.nummer}"
+      >Aus Lauf ${lauf.nummer} übernehmen</button>
+    </li>
+  `;
 }
 
 function renderCallsTabelle(calls) {

@@ -30,11 +30,28 @@ export function getProfile(id) {
   return anfrage(`/profile/${id}`);
 }
 
+export function renameProfile(id, name) {
+  return anfrage(`/profile/${id}`, { method: "PATCH", body: JSON.stringify({ name }) });
+}
+
+export function deleteProfile(id) {
+  return anfrage(`/profile/${id}`, { method: "DELETE" });
+}
+
+export function duplicateProfile(id, name) {
+  const body = name ? { name } : {};
+  return anfrage(`/profile/${id}/duplikat`, { method: "POST", body: JSON.stringify(body) });
+}
+
 export function saveArbeitsstand(id, arbeitsstand) {
   return anfrage(`/profile/${id}/arbeitsstand`, {
     method: "PUT",
     body: JSON.stringify(arbeitsstand),
   });
+}
+
+export function uebernehmeAusLauf(profilId, laufId) {
+  return anfrage(`/profile/${profilId}/arbeitsstand/aus-lauf/${laufId}`, { method: "POST" });
 }
 
 export function startLauf(id, apiKey) {
