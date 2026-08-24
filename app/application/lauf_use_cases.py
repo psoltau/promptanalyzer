@@ -2,24 +2,34 @@ import json
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 from uuid import uuid4
 
 from app.application.ports import (
     LaufExecutionPorts,
+    LaufKostenPorts,
     LaufStartPorts,
     ModelGatewayError,
     ModelRequest,
     ModelResult,
+    ModellRepository,
 )
 from app.domain.errors import (
     KeinModellGewaehlt,
     KeyFehlt,
+    LaufLaeuftNoch,
+    LaufNichtGefunden,
     ProfilNichtGefunden,
     ToolsJsonUngueltig,
     WiederholungenUngueltig,
 )
-from app.domain.models import Arbeitsstand, Call, CallStatus, Lauf
+from app.domain.kosten import (
+    PreisSchnappschuss,
+    TokenNutzung,
+    berechne_kosten,
+    schnappschuss_aus_modell,
+)
+from app.domain.models import Arbeitsstand, Call, CallStatus, Lauf, Modell
 
 
 def start_lauf(profil_id: str, api_key: Optional[str], ports: LaufStartPorts) -> Lauf:
@@ -68,6 +78,13 @@ class _CallJob:
     wiederholung_index: int
 
 
+@dataclass
+class _AusfuehrungsKontext:
+    job: _CallJob
+    started: float
+    modell_repo: ModellRepository
+
+
 def execute_lauf(lauf: Lauf, api_key: str, ports: LaufExecutionPorts) -> None:
     arbeitsstand = lauf.arbeitsstand
     for modell_name in arbeitsstand.modelle:
@@ -80,12 +97,12 @@ def execute_lauf(lauf: Lauf, api_key: str, ports: LaufExecutionPorts) -> None:
 
 def _run_single_call(job: _CallJob, api_key: str, ports: LaufExecutionPorts) -> Call:
     request = _build_request(job, api_key)
-    started = time.monotonic()
+    kontext = _AusfuehrungsKontext(job=job, started=time.monotonic(), modell_repo=ports.modell_repo)
     try:
         result = ports.gateway.run(request)
     except ModelGatewayError as exc:
-        return _fehler_call(job, started, exc)
-    return _erfolg_call(job, started, result)
+        return _fehler_call(kontext, exc)
+    return _erfolg_call(kontext, result)
 
 
 def _build_request(job: _CallJob, api_key: str) -> ModelRequest:
@@ -107,20 +124,31 @@ def _dauer_ms(started: float) -> int:
     return round((time.monotonic() - started) * 1000)
 
 
-def _call_basis(job: _CallJob, started: float) -> Dict[str, Any]:
+def _call_basis(kontext: _AusfuehrungsKontext) -> Dict[str, Any]:
+    job = kontext.job
     return {
         "id": str(uuid4()),
         "lauf_id": job.lauf.id,
         "modell_name": job.modell_name,
         "wiederholung_index": job.wiederholung_index,
-        "dauer_ms": _dauer_ms(started),
+        "dauer_ms": _dauer_ms(kontext.started),
         "erstellt_am": datetime.now(timezone.utc),
     }
 
 
-def _fehler_call(job: _CallJob, started: float, exc: ModelGatewayError) -> Call:
+def _leere_kosten_felder() -> Dict[str, Optional[float]]:
+    return {
+        "preis_input": None,
+        "preis_cached_input": None,
+        "preis_output": None,
+        "preis_suche": None,
+        "kosten_usd": None,
+    }
+
+
+def _fehler_call(kontext: _AusfuehrungsKontext, exc: ModelGatewayError) -> Call:
     return Call(
-        **_call_basis(job, started),
+        **_call_basis(kontext),
         status=CallStatus.ERROR,
         incomplete_grund=None,
         fehlertext=str(exc),
@@ -133,13 +161,16 @@ def _fehler_call(job: _CallJob, started: float, exc: ModelGatewayError) -> Call:
         antwort_text=None,
         request_json=exc.request_json,
         response_json=None,
+        **_leere_kosten_felder(),
     )
 
 
-def _erfolg_call(job: _CallJob, started: float, result: ModelResult) -> Call:
+def _erfolg_call(kontext: _AusfuehrungsKontext, result: ModelResult) -> Call:
     status = CallStatus.INCOMPLETE if result.incomplete_grund else CallStatus.COMPLETE
+    modell = kontext.modell_repo.get(kontext.job.modell_name)
+    preise, kosten_usd = _preise_und_kosten(modell, _nutzung_aus_result(result))
     return Call(
-        **_call_basis(job, started),
+        **_call_basis(kontext),
         status=status,
         incomplete_grund=result.incomplete_grund,
         fehlertext=None,
@@ -152,4 +183,54 @@ def _erfolg_call(job: _CallJob, started: float, result: ModelResult) -> Call:
         antwort_text=result.antwort_text,
         request_json=result.request_json,
         response_json=result.response_json,
+        preis_input=preise.preis_input,
+        preis_cached_input=preise.preis_cached_input,
+        preis_output=preise.preis_output,
+        preis_suche=preise.preis_suche,
+        kosten_usd=kosten_usd,
+    )
+
+
+def _preise_und_kosten(
+    modell: Optional[Modell], nutzung: TokenNutzung
+) -> Tuple[PreisSchnappschuss, Optional[float]]:
+    preise = schnappschuss_aus_modell(modell)
+    return preise, berechne_kosten(nutzung, preise)
+
+
+def _nutzung_aus_result(result: ModelResult) -> TokenNutzung:
+    return TokenNutzung(
+        input_tokens=result.input_tokens,
+        cached_input_tokens=result.cached_input_tokens,
+        output_tokens=result.output_tokens,
+        web_search_calls=result.web_search_calls,
+    )
+
+
+def kosten_neu_berechnen(lauf_id: str, ports: LaufKostenPorts) -> int:
+    lauf = ports.lauf_repo.get(lauf_id)
+    if lauf is None:
+        raise LaufNichtGefunden()
+    if lauf.beendet_am is None:
+        raise LaufLaeuftNoch()
+    calls = ports.call_repo.list_for_lauf(lauf_id)
+    for call in calls:
+        _kosten_neu_fuer_call(call, ports)
+    return len(calls)
+
+
+def _kosten_neu_fuer_call(call: Call, ports: LaufKostenPorts) -> None:
+    if call.input_tokens is None:
+        return  # Kein Verbrauch gemeldet (z. B. status=error) — nichts zu bepreisen.
+    modell = ports.modell_repo.get(call.modell_name)
+    preise, kosten_usd = _preise_und_kosten(modell, _nutzung_aus_call(call))
+    ports.call_repo.update_kosten(call.id, preise, kosten_usd)
+
+
+def _nutzung_aus_call(call: Call) -> TokenNutzung:
+    return TokenNutzung(
+        input_tokens=call.input_tokens,
+        cached_input_tokens=call.cached_input_tokens,
+        output_tokens=call.output_tokens,
+        web_search_calls=call.web_search_calls,
     )

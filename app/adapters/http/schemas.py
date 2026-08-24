@@ -147,6 +147,10 @@ class KeyStatusResponse(BaseModel):
     umgebungs_key_vorhanden: bool
 
 
+class KostenNeuberechnungResponse(BaseModel):
+    geaenderte_calls: int
+
+
 class CallDetail(BaseModel):
     id: str
     lauf_id: str

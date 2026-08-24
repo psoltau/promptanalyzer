@@ -29,6 +29,7 @@ from app.adapters.http.schemas import (
     CallDetail,
     CallsResponse,
     KeyStatusResponse,
+    KostenNeuberechnungResponse,
     LaufStartResponse,
     ModellCreateBody,
     ModellItem,
@@ -39,14 +40,20 @@ from app.adapters.http.schemas import (
 )
 from app.application.arbeitsstand_use_cases import save_arbeitsstand
 from app.application.calls_use_cases import get_call_view, list_calls_view
-from app.application.lauf_use_cases import start_lauf
+from app.application.lauf_use_cases import kosten_neu_berechnen, start_lauf
 from app.application.modell_use_cases import (
     create_modell,
     delete_modell,
     list_modelle,
     update_modell,
 )
-from app.application.ports import CallRepository, LaufRepository, ModellRepository, ProfilRepository
+from app.application.ports import (
+    CallRepository,
+    LaufKostenPorts,
+    LaufRepository,
+    ModellRepository,
+    ProfilRepository,
+)
 from app.application.profile_use_cases import create_profile, get_profile, list_profiles
 
 router = APIRouter(prefix="/api/v1")
@@ -94,6 +101,18 @@ def start_lauf_route(
     lauf = start_lauf(profil_id, deps.api_key, deps.ports)
     response.headers["Location"] = f"/api/v1/lauf/{lauf.id}"
     return lauf_to_start_response(lauf)
+
+
+@router.post("/lauf/{lauf_id}/kosten-neuberechnung", response_model=KostenNeuberechnungResponse)
+def kosten_neuberechnung_route(
+    lauf_id: str,
+    lauf_repo: LaufRepository = Depends(get_lauf_repo),
+    call_repo: CallRepository = Depends(get_call_repo),
+    modell_repo: ModellRepository = Depends(get_modell_repo),
+) -> KostenNeuberechnungResponse:
+    ports = LaufKostenPorts(lauf_repo=lauf_repo, call_repo=call_repo, modell_repo=modell_repo)
+    geaenderte_calls = kosten_neu_berechnen(lauf_id, ports)
+    return KostenNeuberechnungResponse(geaenderte_calls=geaenderte_calls)
 
 
 @router.get("/profile/{profil_id}/calls", response_model=CallsResponse)

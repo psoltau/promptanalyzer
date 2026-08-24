@@ -52,7 +52,12 @@ CREATE TABLE IF NOT EXISTS call (
     antwort_text TEXT,
     request_json TEXT NOT NULL,
     response_json TEXT,
-    erstellt_am TEXT NOT NULL
+    erstellt_am TEXT NOT NULL,
+    preis_input REAL,
+    preis_cached_input REAL,
+    preis_output REAL,
+    preis_suche REAL,
+    kosten_usd REAL
 );
 
 CREATE TABLE IF NOT EXISTS modell (
