@@ -2,6 +2,7 @@ import sqlite3
 from typing import Any, Dict, List, Optional
 
 from app.adapters.sqlite.time_codec import text_to_dt
+from app.domain.key_sanitizer import bereinige
 from app.domain.models import Call, CallStatus
 
 _INSERT_SQL = (
@@ -53,11 +54,11 @@ def _call_to_params(call: Call) -> Dict[str, Any]:
         "wiederholung_index": call.wiederholung_index,
         "status": call.status.value,
         "incomplete_grund": call.incomplete_grund,
-        "fehlertext": call.fehlertext,
+        "fehlertext": bereinige(call.fehlertext),
         "dauer_ms": call.dauer_ms,
-        "antwort_text": call.antwort_text,
-        "request_json": call.request_json,
-        "response_json": call.response_json,
+        "antwort_text": bereinige(call.antwort_text),
+        "request_json": bereinige(call.request_json),
+        "response_json": bereinige(call.response_json),
         "erstellt_am": call.erstellt_am.isoformat(),
         **_token_params(call),
     }

@@ -337,7 +337,8 @@ Temp-Verzeichnis, die Kostenrechnung läuft echt.
 - Anzahl der Suchanfragen wird aus der Antwortstruktur korrekt gezählt.
 - **Key-Dichtheit:** nach Läufen mit einem Key im Header und einem key-artigen Text im Prompt
   enthält keine Spalte irgendeiner Zeile die Key-Zeichenkette. Dieser Test ist in
-  [ADR-Nähe](./docs/adr/) und darf nie gelöscht werden, ohne ihn zu ersetzen.
+  [ADR 0008](./docs/adr/0008-key-dichtheit-als-dauerhafte-garantie.md) und darf nie gelöscht
+  werden, ohne ihn zu ersetzen.
 - Umgebungs-Key greift, wenn der Header fehlt; Header gewinnt, wenn beides da ist.
 
 **Prior Art:** keine — grünes Feld. Diese Tests *sind* das Prior Art. Der erste geschriebene Test

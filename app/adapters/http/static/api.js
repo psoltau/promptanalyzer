@@ -14,6 +14,10 @@ async function anfrage(pfad, optionen = {}) {
   return response.json();
 }
 
+export function getKeyStatus() {
+  return anfrage("/key-status");
+}
+
 export function listProfiles() {
   return anfrage("/profile");
 }

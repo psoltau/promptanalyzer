@@ -1,3 +1,4 @@
+import json
 import time
 from typing import Any, Dict
 
@@ -317,3 +318,43 @@ def test_fehlerantwort_hat_standard_envelope(client):
     error = response.json()["error"]
     assert set(error.keys()) == {"code", "message", "traceId"}
     assert error["code"] == error["code"].upper()
+
+
+def test_key_status_meldet_keinen_umgebungs_key_ohne_env(client):
+    response = client.get("/api/v1/key-status")
+
+    assert response.status_code == 200
+    assert response.json() == {"umgebungs_key_vorhanden": False}
+
+
+def test_key_status_meldet_umgebungs_key_wenn_gesetzt(client, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-aus-umgebung")
+
+    response = client.get("/api/v1/key-status")
+
+    assert response.json() == {"umgebungs_key_vorhanden": True}
+
+
+# Key-Dichtheit (ADR 0008): darf nie ersatzlos gelöscht werden, siehe
+# docs/adr/0008-key-dichtheit-als-dauerhafte-garantie.md.
+def test_key_dichtheit_kein_key_in_irgendeiner_spalte(client, gateway):
+    header_key = "sk-header-geheimnis-1234567890"
+    prompt_key = "sk-im-prompt-getippt-abcdef123456"
+    antwort_key = "sk-in-der-antwort-zurueckgegeben"
+    profil = _erstelle_profil(client)
+    _setze_arbeitsstand(client, profil["id"], user_prompt=f"Mein Key ist {prompt_key}. Sag hallo.")
+    gateway.setze_standard(VorbereiteteAntwort(antwort_text=f"Verstanden: {antwort_key}"))
+
+    lauf = _starte_lauf(client, profil["id"], headers={"X-OpenAI-Key": header_key}).json()
+    _warte_auf_lauf_ende(client, profil["id"], lauf["lauf_id"])
+
+    calls = client.get(f"/api/v1/profile/{profil['id']}/calls").json()
+    call_id = calls["calls"][0]["id"]
+    detail = client.get(f"/api/v1/call/{call_id}").json()
+    profil_detail = client.get(f"/api/v1/profile/{profil['id']}").json()
+
+    for antwort in (calls, detail, profil_detail):
+        text = json.dumps(antwort)
+        assert header_key not in text
+        assert prompt_key not in text
+        assert antwort_key not in text

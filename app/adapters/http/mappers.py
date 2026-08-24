@@ -7,6 +7,7 @@ from app.adapters.http.schemas import (
     CallDetail,
     CallRow,
     CallsResponse,
+    KeyStatusResponse,
     LaufAggregatBody,
     LaufEinstellungen,
     LaufStartResponse,
@@ -74,6 +75,10 @@ def profil_to_detail(profil: Profil) -> ProfilDetail:
         arbeitsstand_geaendert_am=to_iso_z(profil.arbeitsstand_geaendert_am),
         arbeitsstand=arbeitsstand_to_body(profil.arbeitsstand),
     )
+
+
+def env_key_to_status(env_key: Optional[str]) -> KeyStatusResponse:
+    return KeyStatusResponse(umgebungs_key_vorhanden=env_key is not None)
 
 
 def lauf_to_start_response(lauf: Lauf) -> LaufStartResponse:

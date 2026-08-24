@@ -115,6 +115,10 @@ class PreiseBody(BaseModel):
     preis_suche: Optional[float]
 
 
+class KeyStatusResponse(BaseModel):
+    umgebungs_key_vorhanden: bool
+
+
 class CallDetail(BaseModel):
     id: str
     lauf_id: str

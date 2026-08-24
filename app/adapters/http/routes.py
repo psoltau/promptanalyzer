@@ -1,10 +1,11 @@
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Response
 
 from app.adapters.http.deps import (
     LaufStartDeps,
     get_call_repo,
+    get_env_api_key,
     get_lauf_repo,
     get_lauf_start_deps,
     get_profil_repo,
@@ -13,6 +14,7 @@ from app.adapters.http.mappers import (
     body_to_arbeitsstand,
     call_detail_view_to_schema,
     calls_view_to_response,
+    env_key_to_status,
     lauf_to_start_response,
     profil_to_detail,
     profil_uebersicht_to_item,
@@ -23,6 +25,7 @@ from app.adapters.http.schemas import (
     ArbeitsstandSaveResponse,
     CallDetail,
     CallsResponse,
+    KeyStatusResponse,
     LaufStartResponse,
     ProfilCreateBody,
     ProfilDetail,
@@ -35,6 +38,11 @@ from app.application.ports import CallRepository, LaufRepository, ProfilReposito
 from app.application.profile_use_cases import create_profile, get_profile, list_profiles
 
 router = APIRouter(prefix="/api/v1")
+
+
+@router.get("/key-status", response_model=KeyStatusResponse)
+def key_status_route(env_key: Optional[str] = Depends(get_env_api_key)) -> KeyStatusResponse:
+    return env_key_to_status(env_key)
 
 
 @router.get("/profile", response_model=List[ProfilListItem])

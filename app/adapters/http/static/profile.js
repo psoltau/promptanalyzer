@@ -1,4 +1,4 @@
-import { getProfile, saveArbeitsstand, startLauf, getCalls, getCall } from "./api.js";
+import { getProfile, saveArbeitsstand, startLauf, getCalls, getCall, getKeyStatus } from "./api.js";
 
 const SPEICHER_VERZOEGERUNG_MS = 800;
 const POLL_INTERVALL_MS = 1000;
@@ -9,10 +9,11 @@ let pollTimer = null;
 
 export async function renderProfile(app, profilId) {
   stoppePolling();
-  const profil = await getProfile(profilId);
+  const [profil, keyStatus] = await Promise.all([getProfile(profilId), getKeyStatus()]);
   app.innerHTML = vorlage(profil);
   fuelleFormular(app, profil.arbeitsstand);
-  bindeFormular(app, profilId);
+  bindeFormular(app, profilId, keyStatus);
+  aktualisiereKeyQuelle(app, keyStatus);
   await aktualisiereCalls(app, profilId);
 }
 
@@ -37,6 +38,7 @@ function vorlage(profil) {
       <label>API-Key (optional, sonst OPENAI_API_KEY aus der Umgebung)
         <input id="api_key" type="password" />
       </label><br/>
+      <p id="key-quelle"></p>
       <button type="submit">Ausführen</button>
     </form>
     <h2>Läufe</h2>
@@ -53,18 +55,31 @@ function fuelleFormular(app, arbeitsstand) {
   app.querySelector("#api_key").value = window.localStorage.getItem(API_KEY_STORAGE) || "";
 }
 
-function bindeFormular(app, profilId) {
+function bindeFormular(app, profilId, keyStatus) {
   const felder = ["system_prompt", "user_prompt", "modell", "max_output_tokens", "reasoning_effort"];
   felder.forEach((id) => {
     app.querySelector(`#${id}`).addEventListener("input", () => planeSpeichern(app, profilId));
   });
   app.querySelector("#api_key").addEventListener("input", (event) => {
     window.localStorage.setItem(API_KEY_STORAGE, event.target.value);
+    aktualisiereKeyQuelle(app, keyStatus);
   });
   app.querySelector("#arbeitsstand-form").addEventListener("submit", (event) => {
     event.preventDefault();
     ausfuehren(app, profilId);
   });
+}
+
+function aktualisiereKeyQuelle(app, keyStatus) {
+  const eingetragen = app.querySelector("#api_key").value.trim();
+  const anzeige = app.querySelector("#key-quelle");
+  if (eingetragen) {
+    anzeige.textContent = "Wirkender Key: eingetragenes Feld";
+  } else if (keyStatus.umgebungs_key_vorhanden) {
+    anzeige.textContent = "Wirkender Key: Umgebungsvariable OPENAI_API_KEY";
+  } else {
+    anzeige.textContent = "Wirkender Key: keiner (weder Feld noch Umgebung)";
+  }
 }
 
 function planeSpeichern(app, profilId) {

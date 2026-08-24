@@ -2,6 +2,7 @@ import json
 import sqlite3
 from typing import Any, Dict
 
+from app.domain.key_sanitizer import bereinige
 from app.domain.models import Arbeitsstand
 
 
@@ -21,9 +22,9 @@ def arbeitsstand_row_to_domain(row: sqlite3.Row) -> Arbeitsstand:
 
 def arbeitsstand_to_params(arbeitsstand: Arbeitsstand) -> Dict[str, Any]:
     return {
-        "system_prompt": arbeitsstand.system_prompt,
-        "user_prompt": arbeitsstand.user_prompt,
-        "tools_json": arbeitsstand.tools_json,
+        "system_prompt": bereinige(arbeitsstand.system_prompt),
+        "user_prompt": bereinige(arbeitsstand.user_prompt),
+        "tools_json": bereinige(arbeitsstand.tools_json),
         "modelle": json.dumps(list(arbeitsstand.modelle)),
         "max_output_tokens": arbeitsstand.max_output_tokens,
         "reasoning_effort": arbeitsstand.reasoning_effort,
