@@ -25,6 +25,8 @@ function vorlage(profil) {
     <form id="arbeitsstand-form">
       <label>System Prompt<br/><textarea id="system_prompt" rows="6" cols="80"></textarea></label><br/>
       <label>User Prompt<br/><textarea id="user_prompt" rows="6" cols="80"></textarea></label><br/>
+      <label>Tool-Definitionen (JSON)<br/><textarea id="tools_json" rows="6" cols="80"></textarea></label>
+      <p id="tools-json-fehler" class="feld-fehler"></p>
       <label>Modell <input id="modell" type="text" placeholder="z.B. gpt-5" /></label><br/>
       <label>max_output_tokens <input id="max_output_tokens" type="number" min="1" /></label><br/>
       <label>reasoning_effort
@@ -49,17 +51,20 @@ function vorlage(profil) {
 function fuelleFormular(app, arbeitsstand) {
   app.querySelector("#system_prompt").value = arbeitsstand.system_prompt;
   app.querySelector("#user_prompt").value = arbeitsstand.user_prompt;
+  app.querySelector("#tools_json").value = arbeitsstand.tools_json ?? "";
   app.querySelector("#modell").value = arbeitsstand.modelle[0] || "";
   app.querySelector("#max_output_tokens").value = arbeitsstand.max_output_tokens ?? "";
   app.querySelector("#reasoning_effort").value = arbeitsstand.reasoning_effort || "";
   app.querySelector("#api_key").value = window.localStorage.getItem(API_KEY_STORAGE) || "";
+  pruefeToolsJson(app);
 }
 
 function bindeFormular(app, profilId, keyStatus) {
-  const felder = ["system_prompt", "user_prompt", "modell", "max_output_tokens", "reasoning_effort"];
+  const felder = ["system_prompt", "user_prompt", "tools_json", "modell", "max_output_tokens", "reasoning_effort"];
   felder.forEach((id) => {
     app.querySelector(`#${id}`).addEventListener("input", () => planeSpeichern(app, profilId));
   });
+  app.querySelector("#tools_json").addEventListener("input", () => pruefeToolsJson(app));
   app.querySelector("#api_key").addEventListener("input", (event) => {
     window.localStorage.setItem(API_KEY_STORAGE, event.target.value);
     aktualisiereKeyQuelle(app, keyStatus);
@@ -68,6 +73,21 @@ function bindeFormular(app, profilId, keyStatus) {
     event.preventDefault();
     ausfuehren(app, profilId);
   });
+}
+
+function pruefeToolsJson(app) {
+  const wert = app.querySelector("#tools_json").value.trim();
+  const anzeige = app.querySelector("#tools-json-fehler");
+  if (!wert) {
+    anzeige.textContent = "";
+    return;
+  }
+  try {
+    JSON.parse(wert);
+    anzeige.textContent = "";
+  } catch (fehler) {
+    anzeige.textContent = `Ungültiges JSON: ${fehler.message}`;
+  }
 }
 
 function aktualisiereKeyQuelle(app, keyStatus) {
@@ -100,7 +120,7 @@ function liesFormular(app) {
   return {
     system_prompt: app.querySelector("#system_prompt").value,
     user_prompt: app.querySelector("#user_prompt").value,
-    tools_json: null,
+    tools_json: liesToolsJson(app),
     modelle: modell ? [modell] : [],
     max_output_tokens: maxTokens ? Number(maxTokens) : null,
     reasoning_effort: app.querySelector("#reasoning_effort").value || null,
@@ -108,6 +128,11 @@ function liesFormular(app) {
     search_context_size: null,
     wiederholungen: 1,
   };
+}
+
+function liesToolsJson(app) {
+  const wert = app.querySelector("#tools_json").value;
+  return wert.trim() ? wert : null;
 }
 
 async function ausfuehren(app, profilId) {
