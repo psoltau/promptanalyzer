@@ -31,3 +31,9 @@ textarea {
   width: 100%;
   max-width: 640px;
 }
+
+.feld-fehler {
+  color: #b00020;
+  font-size: 0.85rem;
+  margin: 0.2rem 0 0.6rem;
+}
